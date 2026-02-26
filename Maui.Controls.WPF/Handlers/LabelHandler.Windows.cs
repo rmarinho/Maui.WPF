@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Handlers.WPF
 {
 	public partial class LabelHandler : WPFViewHandler<ILabel, TextBlock>
 	{
-		protected override TextBlock CreatePlatformView() => new TextBlock();
+		protected override TextBlock CreatePlatformView() => new TextBlock { TextWrapping = System.Windows.TextWrapping.Wrap };
 
 		static WBrush? ToBrush(Graphics.Color? color)
 		{
