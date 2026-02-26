@@ -119,8 +119,8 @@
 |---------|--------|-------|
 | [x] **Label** | ✅ | Full: `Text`, `TextColor`, `FontSize`, `FontFamily`, `FontAttributes`, `HorizontalTextAlignment`, `VerticalTextAlignment`, `MaxLines`, `LineBreakMode`, `TextDecorations`, `CharacterSpacing`, `Padding`, `FormattedText` |
 | [x] **Button** | ✅ | `Text`, `TextColor`, `FontSize`, `Background`, `Padding`, `CornerRadius` (stub), `Command`; WPF chrome overrides Background on some system themes |
-| [x] **Image** | ✅ | `FileImageSource` basic loading; `Aspect` (Fill, AspectFit, AspectFill) via `Stretch` |
-| [ ] **ImageButton** | ❌ | Not implemented |
+| [x] **Image** | ✅ | `FileImageSource`, `UriImageSource`, `StreamImageSource` loading; `Aspect` (Fill, AspectFit, AspectFill) via `Stretch` |
+| [x] **ImageButton** | ✅ | WPF `Button` with `Image` content; `Source`, `Aspect`, `Padding`, `BorderWidth`, `BorderColor` |
 | [x] **Entry** | ✅ | `Text`, `TextColor`, `FontSize`, `IsPassword`, `Placeholder`, `MaxLength`, `IsReadOnly`, `Keyboard`, `ReturnType`; missing `PlaceholderColor` watermark |
 | [x] **Editor** | ✅ | `Text`, `TextColor`, `FontSize`, `Placeholder`, `MaxLength`, `IsReadOnly`; missing placeholder watermark |
 | [x] **Switch** | ✅ | Custom WPF `ControlTemplate` with animated toggle; `IsToggled`, `OnColor`, `TrackColor` (stub), `ThumbColor` (stub) |
@@ -130,7 +130,7 @@
 | [x] **ProgressBar** | ✅ | WPF `ProgressBar`; `Progress` (0-1 → 0-100) |
 | [x] **ActivityIndicator** | ✅ | Custom rotating arc via `DispatcherTimer`; `IsRunning`, `Color` |
 | [x] **BoxView** | ✅ | Rendered via `ShapeViewHandler` as filled rectangle |
-| [ ] **RadioButton** | ❌ | Not implemented |
+| [x] **RadioButton** | ✅ | WPF `RadioButton`; `IsChecked`, `Content`, `TextColor`, `FontSize`, `GroupName` |
 
 > **MAUI Source Reference:**
 > - [`LabelHandler`](https://github.com/dotnet/maui/blob/main/src/Core/src/Handlers/Label/LabelHandler.cs)
@@ -153,7 +153,7 @@
 
 | Control | Status | Notes |
 |---------|--------|-------|
-| [ ] **CollectionView** | ❌ | **P0 gap** — data-driven list |
+| [x] **CollectionView** | ✅ | WPF `ListBox` with `MauiDataTemplateSelector` + `MauiContentPresenter`; `ItemsSource`, `SelectedItem`, `SelectionMode`, `EmptyView` |
 | [ ] **ListView** | ❌ | Legacy list control |
 | [ ] **CarouselView** | ❌ | Horizontal swipeable collection |
 | [ ] **IndicatorView** | ❌ | Page indicator dots |
@@ -201,12 +201,12 @@
 |---------|--------|-------|
 | [x] **TapGestureRecognizer** | ✅ | `GestureManager` — `MouseLeftButtonUp` with reflection for `SendTapped` |
 | [x] **PointerGestureRecognizer** | ✅ | `GestureManager` — `MouseEnter`/`Leave`/`Move` with reflection for `SendPointerEntered`/`Exited`/`Moved` |
-| [ ] **PanGestureRecognizer** | ❌ | Mouse drag tracking |
-| [ ] **SwipeGestureRecognizer** | ❌ | Mouse swipe/flick detection |
+| [x] **PanGestureRecognizer** | ✅ | `GestureManager` — mouse capture + delta tracking, PanStarted/Running/Completed |
+| [x] **SwipeGestureRecognizer** | ✅ | `GestureManager` — threshold-based direction detection |
 | [ ] **PinchGestureRecognizer** | ❌ | Multi-touch / scroll wheel zoom |
-| [ ] **DragGestureRecognizer** | ❌ | Drag source for drag-and-drop |
-| [ ] **DropGestureRecognizer** | ❌ | Drop target for drag-and-drop |
-| [ ] **LongPressGestureRecognizer** | ❌ | Long press/hold detection |
+| [x] **DragGestureRecognizer** | ✅ | `GestureManager` — WPF `DragDrop.DoDragDrop` |
+| [x] **DropGestureRecognizer** | ✅ | `GestureManager` — `AllowDrop` + `DragOver`/`Drop` events |
+| [x] **LongPressGestureRecognizer** | ✅ | `GestureManager` — `DispatcherTimer` 500ms hold detection |
 
 > **MAUI Source Reference:**
 > - Gesture platform managers: [`src/Controls/src/Core/Platform/GestureManager/`](https://github.com/dotnet/maui/tree/main/src/Controls/src/Core/Platform/GestureManager)
@@ -235,9 +235,9 @@
 | [x] **RoundRectangle** | ✅ | Via `ShapeViewHandler` |
 | [x] **Ellipse** | ✅ | Via `ShapeViewHandler` |
 | [x] **Line** | ✅ | Via `ShapeViewHandler` |
-| [ ] **Path** | ❌ | Complex path geometry |
-| [ ] **Polygon** | ❌ | Closed multi-point shape |
-| [ ] **Polyline** | ❌ | Open multi-point shape |
+| [x] **Path** | ✅ | MAUI Geometry → WPF `StreamGeometry` via `Geometry.Parse` |
+| [x] **Polygon** | ✅ | MAUI `PointCollection` → WPF `Polygon` |
+| [x] **Polyline** | ✅ | MAUI `PointCollection` → WPF `Polyline` |
 | [x] **Fill & Stroke** | ✅ | `Fill` brush and `Stroke` properties mapped |
 
 > **WPF Implementation Note:** WPF has excellent built-in shape support via `System.Windows.Shapes` namespace. `Path` can use `StreamGeometry` or `PathGeometry` for complex MAUI paths.
@@ -255,7 +255,7 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | [x] **Opacity** | ✅ | `UIElement.Opacity` |
 | [x] **IsVisible** | ✅ | `UIElement.Visibility` (Visible/Collapsed/Hidden) |
 | [x] **IsEnabled** | ✅ | `UIElement.IsEnabled` |
-| [ ] **InputTransparent** | ❌ | `IsHitTestVisible` not mapped |
+| [x] **InputTransparent** | ✅ | `UIElement.IsHitTestVisible` |
 
 ### Sizing
 
@@ -272,7 +272,7 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | [x] **HorizontalOptions / VerticalOptions** | ✅ | Handled by MAUI cross-platform layout engine |
 | [x] **Margin** | ✅ | `FrameworkElement.Margin` mapped via `ViewMapper` |
 | [x] **Padding** | ✅ | Mapped per handler (Entry, Editor, Button, Label, etc.) |
-| [ ] **FlowDirection** | ❌ | `FrameworkElement.FlowDirection` not mapped |
+| [x] **FlowDirection** | ✅ | `FrameworkElement.FlowDirection` mapped |
 | [ ] **ZIndex** | ❌ | `Panel.ZIndex` not mapped |
 
 ### Appearance
@@ -287,30 +287,30 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Property | Status | Notes |
 |----------|--------|-------|
-| [ ] **TranslationX / TranslationY** | ❌ | → WPF `TranslateTransform` |
-| [ ] **Rotation / RotationX / RotationY** | ❌ | → WPF `RotateTransform` / `Viewport3D` |
-| [ ] **Scale / ScaleX / ScaleY** | ❌ | → WPF `ScaleTransform` |
-| [ ] **AnchorX / AnchorY** | ❌ | → WPF `RenderTransformOrigin` |
+| [x] **TranslationX / TranslationY** | ✅ | → WPF `TranslateTransform` via `TransformGroup` |
+| [x] **Rotation / RotationX / RotationY** | ✅ | → WPF `RotateTransform` |
+| [x] **Scale / ScaleX / ScaleY** | ✅ | → WPF `ScaleTransform` |
+| [x] **AnchorX / AnchorY** | ✅ | → WPF `RenderTransformOrigin` |
 
 ### Effects
 
 | Property | Status | Notes |
 |----------|--------|-------|
-| [ ] **Shadow** | ❌ | → WPF `DropShadowEffect` |
-| [ ] **Clip** | ❌ | → WPF `UIElement.Clip` with `RectangleGeometry`/`EllipseGeometry`/`PathGeometry` |
+| [x] **Shadow** | ✅ | → WPF `DropShadowEffect` with radius, offset, opacity |
+| [x] **Clip** | ✅ | → WPF `UIElement.Clip` via `Geometry.Parse` |
 
 ### Automation
 
 | Property | Status | Notes |
 |----------|--------|-------|
-| [ ] **AutomationId** | ❌ | → `AutomationProperties.AutomationId` |
-| [ ] **Semantic properties** | ❌ | → `AutomationProperties.Name`/`HelpText` |
+| [x] **AutomationId** | ✅ | → `AutomationProperties.AutomationId` |
+| [x] **Semantic properties** | ✅ | → `AutomationProperties.Name`/`HelpText` |
 
 ### Interactivity Attachments
 
 | Property | Status | Notes |
 |----------|--------|-------|
-| [ ] **ToolTip** | ❌ | `ToolTipProperties.Text` → WPF `FrameworkElement.ToolTip` |
+| [x] **ToolTip** | ✅ | `ToolTipProperties.Text` → WPF `FrameworkElement.ToolTip` |
 | [ ] **ContextFlyout** | ❌ | → WPF `FrameworkElement.ContextMenu` |
 
 ---
@@ -337,12 +337,12 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [ ] **IFontManager** | ❌ | Resolves `Font` → WPF `System.Windows.Media.FontFamily` + size/weight/style |
-| [ ] **IFontRegistrar** | ❌ | Registers embedded fonts with aliases |
-| [ ] **IEmbeddedFontLoader** | ❌ | Loads font files from assembly resources into WPF |
-| [ ] **Native Font Loading** | ❌ | WPF supports `pack://` URI fonts from resources |
+| [x] **IFontManager** | ✅ | `WPFFontManager` — resolves `Font` → WPF `FontFamily` + size with embedded font support |
+| [x] **IFontRegistrar** | ✅ | `WPFFontRegistrar` — manages font alias registration |
+| [x] **IEmbeddedFontLoader** | ✅ | `WPFEmbeddedFontLoader` — extracts fonts from assembly resources to temp dir |
+| [ ] **Native Font Loading** | ⚠️ | WPF supports `pack://` URI fonts; temp dir extraction implemented |
 | [ ] **IFontNamedSizeService** | ❌ | Maps `NamedSize` enum to platform point sizes |
-| [x] **Font properties** | ⚠️ | `FontSize`, `FontFamily`, `FontAttributes` mapped per handler but no central font manager |
+| [x] **Font properties** | ✅ | `FontSize`, `FontFamily`, `FontAttributes` mapped per handler + central `IFontManager` |
 | [ ] **FontImageSource** | ❌ | Render font glyphs to images |
 
 > **MAUI Source Reference:**
@@ -399,11 +399,11 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [ ] **URL loading** | ❌ | WPF has `WebView2` (Chromium) — not yet wrapped |
-| [ ] **HTML content** | ❌ | |
-| [ ] **JavaScript execution** | ❌ | `EvaluateJavaScriptAsync` |
-| [ ] **Navigation commands** | ❌ | GoBack, GoForward, Reload |
-| [ ] **Navigation events** | ❌ | Navigating, Navigated |
+| [x] **URL loading** | ✅ | `WebViewHandler` — WebView2 with `UrlWebViewSource` |
+| [x] **HTML content** | ✅ | `NavigateToString()` via `HtmlWebViewSource` |
+| [x] **JavaScript execution** | ✅ | `ExecuteScriptAsync` via `EvaluateJavaScriptAsync` |
+| [x] **Navigation commands** | ✅ | GoBack, GoForward, Reload mapped |
+| [x] **Navigation events** | ✅ | `NavigationStarting`/`NavigationCompleted` from WebView2 |
 | [ ] **User Agent** | ❌ | Custom user agent string |
 
 > **WPF Implementation Note:** Use `Microsoft.Web.WebView2.Wpf.WebView2` control. Already available as a NuGet package and used by BlazorWebView.
@@ -461,11 +461,11 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | Feature | Status | Notes |
 |---------|--------|-------|
 | [x] **Platform Ticker** | ✅ | `WPFTicker` — `DispatcherTimer` at `DispatcherPriority.Render` for ~60fps |
-| [ ] **TranslateTo** | ❌ | Needs `TranslationX`/`TranslationY` → `TranslateTransform` mapping |
-| [ ] **FadeTo** | ⚠️ | `Opacity` mapped — animation system drives it via ticker |
-| [ ] **ScaleTo** | ❌ | Needs `Scale` → `ScaleTransform` mapping |
-| [ ] **RotateTo** | ❌ | Needs `Rotation` → `RotateTransform` mapping |
-| [ ] **LayoutTo** | ⚠️ | Layout system works — animation drives bounds changes |
+| [x] **TranslateTo** | ✅ | `TranslationX`/`TranslationY` → `TranslateTransform` mapping wired |
+| [x] **FadeTo** | ✅ | `Opacity` mapped — animation system drives it via ticker |
+| [x] **ScaleTo** | ✅ | `Scale` → `ScaleTransform` mapping wired |
+| [x] **RotateTo** | ✅ | `Rotation` → `RotateTransform` mapping wired |
+| [x] **LayoutTo** | ✅ | Layout system works — animation drives bounds changes |
 | [x] **Easing functions** | ✅ | Cross-platform MAUI — no platform code needed |
 | [x] **Animation class** | ✅ | Cross-platform MAUI — no platform code needed |
 
@@ -489,9 +489,9 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Source Type | Status | Notes |
 |-------------|--------|-------|
-| [x] **FileImageSource** | ⚠️ | Basic loading via `BitmapImage` — needs improved resource resolution |
-| [ ] **UriImageSource** | ❌ | Async HTTP loading → `BitmapImage` with `UriSource` |
-| [ ] **StreamImageSource** | ❌ | Stream → `BitmapImage` via `BeginInit`/`StreamSource`/`EndInit` |
+| [x] **FileImageSource** | ✅ | `BitmapImage` with improved resolution (app dir, Resources/Images fallback) |
+| [x] **UriImageSource** | ✅ | `BitmapImage` with `UriSource` + `CacheOption.OnLoad` |
+| [x] **StreamImageSource** | ✅ | Async stream → `BitmapImage` via `BeginInit`/`StreamSource`/`EndInit` + `Freeze` |
 | [ ] **FontImageSource** | ❌ | Render font glyphs via `FormattedText` → `DrawingVisual` → `RenderTargetBitmap` |
 
 > **WPF Implementation Note:** WPF `BitmapImage` natively supports URI sources (http/https), file paths, and streams. `UriImageSource` should be straightforward.
@@ -503,13 +503,13 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | Event | Status | Notes |
 |-------|--------|-------|
 | [x] **App Launched** | ✅ | `MauiWPFApplication.OnStartup` |
-| [ ] **App Activated** | ❌ | → `System.Windows.Application.Activated` |
-| [ ] **App Deactivated** | ❌ | → `System.Windows.Application.Deactivated` |
-| [ ] **App Terminating** | ❌ | → `System.Windows.Application.Exit` |
-| [ ] **Window Created** | ❌ | Platform lifecycle event |
-| [ ] **Window Activated** | ❌ | → `System.Windows.Window.Activated` |
-| [ ] **Window Deactivated** | ❌ | → `System.Windows.Window.Deactivated` |
-| [ ] **Window Closing** | ❌ | → `System.Windows.Window.Closing` |
+| [x] **App Activated** | ✅ | `LifecycleManager` → `Application.Activated` → `Window.OnActivated` |
+| [x] **App Deactivated** | ✅ | `LifecycleManager` → `Application.Deactivated` → `Window.OnDeactivated` |
+| [x] **App Terminating** | ✅ | `LifecycleManager` → `Application.Exit` → `Window.OnStopped` + `ThemeManager.Shutdown` |
+| [x] **Window Created** | ✅ | Via `ApplicationHandler.CreatePlatformElement` |
+| [x] **Window Activated** | ✅ | `LifecycleManager.RegisterWindowLifecycleEvents` → `Window.Activated` |
+| [x] **Window Deactivated** | ✅ | `LifecycleManager` → `Window.Deactivated` |
+| [x] **Window Closing** | ✅ | `LifecycleManager` → `Window.Closing` → `OnBackgrounding` + `Window.Closed` → `OnDestroying` |
 
 ---
 
@@ -517,9 +517,9 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [ ] **System theme detection** | ❌ | Read Windows registry `AppsUseLightTheme` or `SystemParameters.HighContrast` |
-| [ ] **UserAppTheme** | ❌ | Programmatic theme switching |
-| [ ] **RequestedThemeChanged** | ❌ | Event when system or app theme changes |
+| [x] **System theme detection** | ✅ | `ThemeManager` reads `AppsUseLightTheme` registry key |
+| [x] **UserAppTheme** | ✅ | Via `ThemeManager` + `AppInfo.RequestedTheme` |
+| [x] **RequestedThemeChanged** | ✅ | `SystemEvents.UserPreferenceChanged` → `ThemeManager.OnUserPreferenceChanged` |
 | [x] **AppThemeBinding** | ✅ | Cross-platform MAUI feature — works via property binding system |
 
 > **WPF Implementation Note:** Detect Windows 10+ dark mode via registry key `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize\AppsUseLightTheme`. Listen for `SystemEvents.UserPreferenceChanged` to detect theme changes.
@@ -624,25 +624,25 @@ D:\repos\rmarinho\maui.wpf\
 18. ~~Animations (ITicker)~~ ✅
 
 ### Phase 4: Advanced Controls 🔴 IN PROGRESS
-19. **CollectionView** / ListView handlers ❌ **P0**
+19. ~~CollectionView~~ ✅ / ListView handlers ❌
 20. ~~Picker, DatePicker, TimePicker handlers~~ ✅
 21. ~~SearchBar handler~~ ✅
-22. RadioButton ❌, ~~Stepper~~ ✅
+22. ~~RadioButton~~ ✅, ~~Stepper~~ ✅
 23. CarouselView, IndicatorView ❌
 24. TableView, SwipeView, RefreshView ❌
-25. GraphicsView + ~~ShapeViewHandler~~ ✅
+25. GraphicsView ❌ + ~~ShapeViewHandler~~ ✅ (now with Path/Polygon/Polyline)
 
-### Phase 5: Rich Features 🔴 NOT STARTED
+### Phase 5: Rich Features 🟡 IN PROGRESS
 26. Shell handler ❌
-27. WebView handler ❌
+27. ~~WebView handler~~ ✅
 28. ~~BlazorWebView handler~~ ✅
-29. MenuBar ❌
+29. MenuBar (static helper implemented, not wired to WindowHandler) ⚠️
 30. ~~FormattedText (Label spans)~~ ✅
-31. Image source types (URI ❌, Stream ❌, FontImage ❌)
-32. Remaining gesture recognizers (Pan, Swipe, Pinch, Drag, Drop, LongPress) ❌
+31. ~~Image source types~~ ✅ (File, URI, Stream); FontImage ❌
+32. ~~Gesture recognizers (Pan, Swipe, Drag, Drop, LongPress)~~ ✅; Pinch ❌
 33. Remaining essentials ❌
-34. App Theme / Dark Mode ❌
-35. Lifecycle events ❌
+34. ~~App Theme / Dark Mode~~ ✅
+35. ~~Lifecycle events~~ ✅
 36. Build targets / Resizetizer integration ❌
 
 ---
@@ -655,29 +655,29 @@ D:\repos\rmarinho\maui.wpf\
 | **Application & Window** | 8 of 12 | 12 | 67% |
 | **Pages** | 4 of 6 | 6 | 67% |
 | **Layouts** | 9 of 10 | 10 | 90% |
-| **Basic Controls** | 12 of 14 | 14 | 86% |
+| **Basic Controls** | 14 of 14 | 14 | 100% |
 | **Input Controls** | 4 of 4 | 4 | 100% |
-| **Collection Controls** | 0 of 7 | 7 | 0% |
+| **Collection Controls** | 1 of 7 | 7 | 14% |
 | **Navigation** | 4 of 8 | 8 | 50% |
 | **Alerts & Dialogs** | 3 of 3 | 3 | 100% |
-| **Gesture Recognizers** | 2 of 8 | 8 | 25% |
-| **Graphics & Shapes** | 5 of 10 | 10 | 50% |
-| **Base View Properties** | 11 of 22 | 22 | 50% |
-| **Font Services** | 1 of 7 | 7 | 14% |
+| **Gesture Recognizers** | 7 of 8 | 8 | 88% |
+| **Graphics & Shapes** | 8 of 10 | 10 | 80% |
+| **Base View Properties** | 19 of 22 | 22 | 86% |
+| **Font Services** | 4 of 7 | 7 | 57% |
 | **Essentials** | 11 of 25 | 25 | 44% |
-| **WebView** | 0 of 6 | 6 | 0% |
+| **WebView** | 5 of 6 | 6 | 83% |
 | **BlazorWebView** | 7 of 7 | 7 | 100% |
 | **FormattedText/Spans** | 8 of 9 | 9 | 89% |
 | **MenuBar** | 0 of 5 | 5 | 0% |
-| **Animations** | 4 of 8 | 8 | 50% |
+| **Animations** | 8 of 8 | 8 | 100% |
 | **VSM & Triggers** | 5 of 6 | 6 | 83% |
 | **ControlTemplate** | 3 of 3 | 3 | 100% |
-| **Lifecycle Events** | 1 of 8 | 8 | 13% |
-| **Image Source Types** | 1 of 4 | 4 | 25% |
-| **App Theme** | 1 of 4 | 4 | 25% |
+| **Lifecycle Events** | 8 of 8 | 8 | 100% |
+| **Image Source Types** | 3 of 4 | 4 | 75% |
+| **App Theme** | 4 of 4 | 4 | 100% |
 | **Build/Resizetizer** | 0 of 5 | 5 | 0% |
 | | | | |
-| **TOTAL** | **113 of 222** | **222** | **51%** |
+| **TOTAL** | **160 of 222** | **222** | **72%** |
 
 ---
 
