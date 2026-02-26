@@ -63,6 +63,11 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Line, ShapeViewHandler>();
 			handlersCollection.AddHandler<AspNetCore.Components.WebView.Maui.BlazorWebView, AspNetCore.Components.WebView.Maui.WPF.BlazorWebViewHandler>();
 
+			// Navigation handlers
+			handlersCollection.AddHandler<NavigationPage, NavigationViewHandler>();
+			handlersCollection.AddHandler<TabbedPage, TabbedViewHandler>();
+			handlersCollection.AddHandler<FlyoutPage, FlyoutViewHandler>();
+
 			return handlersCollection;
 		}
 
@@ -91,6 +96,12 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 				return Dispatcher.GetForCurrentThread()!;
 			});
+
+			// Register WPF-specific animation ticker (runs on dispatcher thread)
+			builder.Services.AddSingleton<Microsoft.Maui.Animations.Ticker>(new Microsoft.Maui.Platform.WPF.WPFTicker());
+
+			// Register alert/prompt/action sheet handler
+			Microsoft.Maui.Platform.WPF.WPFAlertManagerSubscription.Register(builder.Services);
 
 			builder.ConfigureImageSourceHandlers();
 			builder
@@ -228,6 +239,15 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 				{
 					var m = view.Margin;
 					fe.Margin = new System.Windows.Thickness(m.Left, m.Top, m.Right, m.Bottom);
+				}
+			});
+
+			// Wire gesture recognizers to WPF mouse events
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("GestureRecognizers", (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					Microsoft.Maui.Platform.WPF.GestureManager.SetupGestures(fe, view);
 				}
 			});
 
