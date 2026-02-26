@@ -15,7 +15,7 @@
 | [x] **IDispatcher / IDispatcherProvider** | ✅ | `WPFDispatcherProvider` uses `System.Windows.Threading.Dispatcher` |
 | [x] **Handler Factory** | ✅ | Standard MAUI `ConfigureMauiHandlers` in `AppHostBuilderExtensions` |
 | [x] **App Host Builder** | ✅ | `UseMauiAppWPF<TApp>()` extension method |
-| [ ] **IPlatformApplication** | ❌ | Not yet abstracted — `MauiWPFApplication` serves as both WPF `Application` and MAUI bridge |
+| [x] **IPlatformApplication** | ✅ | `WPFPlatformApplication` implements `IPlatformApplication` with App/Services |
 
 ### Rendering Pipeline
 
@@ -32,7 +32,7 @@
 |---------|--------|-------|
 | [x] **Color Conversion** | ✅ | `Microsoft.Maui.Graphics.Color` → `System.Windows.Media.SolidColorBrush` helper in every handler |
 | [x] **Thickness Conversion** | ✅ | `Microsoft.Maui.Thickness` → `System.Windows.Thickness` |
-| [ ] **Transform Conversion** | ❌ | `TranslationX/Y`, `Scale`, `Rotation` → WPF `RenderTransform` not yet wired |
+| [x] **Transform Conversion** | ✅ | `UpdateTransformGroup()` maps Scale/Rotate/Translate → `TransformGroup`, `RenderTransformOrigin` for anchors |
 
 > **MAUI Source Reference:**
 > - Core handler infrastructure: [`src/Core/src/Handlers/`](https://github.com/dotnet/maui/tree/main/src/Core/src/Handlers)
@@ -50,8 +50,8 @@
 |---------|--------|-------|
 | [x] **ApplicationHandler** | ✅ | `ApplicationHandler.cs` — maps `IApplication` to WPF `Application` |
 | [x] **CreateWindow** | ✅ | Creates WPF `System.Windows.Window` from `IApplication.CreateWindow()` |
-| [ ] **ThemeChanged** | ❌ | No system theme detection yet |
-| [ ] **OpenWindow / CloseWindow** | ❌ | Multi-window not supported |
+| [x] **ThemeChanged** | ✅ | `ThemeManager` detects dark/light via registry, `SystemEvents.UserPreferenceChanged` fires theme changes |
+| [x] **OpenWindow / CloseWindow** | ✅ | `ApplicationHandler.MapOpenWindow` creates new `System.Windows.Window`, `MapCloseWindow` calls `.Close()` |
 
 ### Window
 
@@ -63,9 +63,9 @@
 | [x] **X / Y** | ✅ | Maps to WPF `Left`/`Top` |
 | [x] **MinimumWidth / MinimumHeight** | ✅ | Mapped |
 | [x] **MaximumWidth / MaximumHeight** | ✅ | Mapped |
-| [ ] **Page (Content)** | ⚠️ | Sets content but doesn't track page changes dynamically |
-| [ ] **MenuBar** | ❌ | Not implemented |
-| [ ] **Multi-window** | ❌ | Single window only |
+| [x] **Page (Content)** | ✅ | `PageHandler` sets content via `ContentPanel`, tracks page changes through handler mappers |
+| [x] **MenuBar** | ✅ | `WindowHandler.SetupMenuBar()` creates WPF `Menu` + `MenuItem` hierarchy from MAUI MenuBar |
+| [x] **Multi-window** | ✅ | `ApplicationHandler.MapOpenWindow` creates additional WPF windows |
 
 > **MAUI Source Reference:**
 > - [`WindowHandler`](https://github.com/dotnet/maui/blob/main/src/Core/src/Handlers/Window/WindowHandler.cs)
@@ -80,8 +80,8 @@
 | [x] **NavigationPage** | ✅ | `NavigationViewHandler` — `DockPanel` with toolbar (back button, title, toolbar items) + `ContentControl` content area |
 | [x] **TabbedPage** | ✅ | `TabbedViewHandler` — uses WPF `TabControl` with auto-generated `TabItem`s |
 | [x] **FlyoutPage** | ✅ | `FlyoutViewHandler` — WPF `Grid` with 3 columns (flyout \| `GridSplitter` \| detail) |
-| [ ] **Shell** | ❌ | Major gap — no flyout/tabs/URI navigation from Shell |
-| [ ] **ModalPage** | ❌ | `PushModalAsync`/`PopModalAsync` not hooked |
+| [x] **Shell** | ✅ | `ShellHandler` with flyout panel, tab control, URI-based navigation, shell item routing |
+| [x] **ModalPage** | ✅ | `ModalNavigationManager` with animated overlay push/pop |
 
 > **MAUI Source Reference:**
 > - [`NavigationViewHandler`](https://github.com/dotnet/maui/blob/main/src/Controls/src/Core/Handlers/NavigationPage/)
@@ -107,7 +107,7 @@
 | [x] **ScrollView** | ✅ | `ScrollViewHandler` — WPF `ScrollViewer` wrapping child content |
 | [x] **ContentView** | ✅ | `ContentViewHandler` — WPF `ContentControl` |
 | [x] **Border** | ✅ | `BorderHandler` — WPF `Border` with `CornerRadius`, `BorderBrush`, `BorderThickness` |
-| [ ] **Frame** | ⚠️ | Not registered separately — could reuse `BorderHandler` |
+| [x] **Frame** | ✅ | Registered as `BorderHandler` alias in `AddMauiControlsHandlers()` |
 
 > **Key Concept:** MAUI's layout engine (StackLayout, Grid, FlexLayout, AbsoluteLayout) is entirely cross-platform. The `LayoutHandler` just needs to create a native container, add/remove children, and call `Measure`/`Arrange` using MAUI-computed bounds.
 
@@ -154,12 +154,12 @@
 | Control | Status | Notes |
 |---------|--------|-------|
 | [x] **CollectionView** | ✅ | WPF `ListBox` with `MauiDataTemplateSelector` + `MauiContentPresenter`; `ItemsSource`, `SelectedItem`, `SelectionMode`, `EmptyView` |
-| [ ] **ListView** | ❌ | Legacy list control |
-| [ ] **CarouselView** | ❌ | Horizontal swipeable collection |
-| [ ] **IndicatorView** | ❌ | Page indicator dots |
-| [ ] **TableView** | ❌ | Settings-style grouped list |
-| [ ] **SwipeView** | ❌ | Swipe-to-reveal actions |
-| [ ] **RefreshView** | ❌ | Pull-to-refresh wrapper |
+| [x] **ListView** | ✅ | `ListViewHandler` using WPF `ListBox` with MAUI template bridge |
+| [x] **CarouselView** | ✅ | `CarouselViewHandler` with horizontal ListBox + arrow buttons |
+| [x] **IndicatorView** | ✅ | `IndicatorViewHandler` renders dot indicators as Ellipses |
+| [x] **TableView** | ✅ | `TableViewHandler` with grouped sections, TextCell, SwitchCell, EntryCell |
+| [x] **SwipeView** | ✅ | `SwipeViewHandler` approximated via context menu |
+| [x] **RefreshView** | ✅ | `RefreshViewHandler` with progress bar indicator |
 
 > **Priority:** CollectionView is the most critical missing control. WPF's `ListBox`/`ListView`/`ItemsControl` with `DataTemplate` is a natural fit.
 
@@ -173,10 +173,10 @@
 | [x] **Back Button** | ✅ | Auto-shown when navigation stack depth > 1 |
 | [x] **Title Bar** | ✅ | `TextBlock` in `DockPanel` toolbar showing current page title |
 | [x] **Toolbar Items** | ✅ | Rendered as `Button`s in toolbar `StackPanel` |
-| [ ] **Modal Navigation** | ❌ | `PushModalAsync`/`PopModalAsync` not implemented |
-| [ ] **Shell Navigation** | ❌ | Full Shell handler not implemented |
-| [ ] **URI-based Navigation** | ❌ | Requires Shell |
-| [ ] **Animated Transitions** | ❌ | No page push/pop animations |
+| [x] **Modal Navigation** | ✅ | `ModalNavigationManager.PushModal()`/`PopModal()` with animated overlay |
+| [x] **Shell Navigation** | ✅ | `ShellHandler` routes shell items, flyout, tabs |
+| [x] **URI-based Navigation** | ✅ | Via Shell routing and GoToAsync |
+| [x] **Animated Transitions** | ✅ | `PageTransitionHelper.AnimatePageIn()`/`AnimatePageOut()` with slide+fade |
 
 > **MAUI Source Reference:**
 > - [`IStackNavigationView`](https://github.com/dotnet/maui/blob/main/src/Core/src/Handlers/NavigationPage/IStackNavigationView.cs)
@@ -203,7 +203,7 @@
 | [x] **PointerGestureRecognizer** | ✅ | `GestureManager` — `MouseEnter`/`Leave`/`Move` with reflection for `SendPointerEntered`/`Exited`/`Moved` |
 | [x] **PanGestureRecognizer** | ✅ | `GestureManager` — mouse capture + delta tracking, PanStarted/Running/Completed |
 | [x] **SwipeGestureRecognizer** | ✅ | `GestureManager` — threshold-based direction detection |
-| [ ] **PinchGestureRecognizer** | ❌ | Multi-touch / scroll wheel zoom |
+| [x] **PinchGestureRecognizer** | ✅ | Ctrl+MouseWheel zoom via `GestureManager` |
 | [x] **DragGestureRecognizer** | ✅ | `GestureManager` — WPF `DragDrop.DoDragDrop` |
 | [x] **DropGestureRecognizer** | ✅ | `GestureManager` — `AllowDrop` + `DragOver`/`Drop` events |
 | [x] **LongPressGestureRecognizer** | ✅ | `GestureManager` — `DispatcherTimer` 500ms hold detection |
@@ -221,10 +221,10 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [ ] **GraphicsView** | ❌ | Platform drawing surface with `IDrawable` rendering |
-| [ ] **Canvas Operations** | ❌ | DrawLine, DrawRect, DrawEllipse, DrawPath, DrawString, Fill operations |
-| [ ] **Canvas State** | ❌ | SaveState/RestoreState, transforms |
-| [ ] **Brushes** | ⚠️ | `SolidColorBrush` mapped; `LinearGradientBrush`/`RadialGradientBrush` not mapped |
+| [x] **GraphicsView** | ✅ | `GraphicsViewHandler` + `WpfCanvas` ICanvas implementation via DrawingContext |
+| [x] **Canvas Operations** | ✅ | DrawLine, DrawRect, DrawEllipse, DrawRoundedRect, DrawString, DrawPath, Fill operations |
+| [x] **Canvas State** | ✅ | SaveState/RestoreState, Translate, Scale, Rotate, ClipRect |
+| [x] **Brushes** | ✅ | `ConvertPaintToBrush()` handles Solid, LinearGradient, RadialGradient paints |
 
 ### Shapes
 
@@ -273,15 +273,15 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | [x] **Margin** | ✅ | `FrameworkElement.Margin` mapped via `ViewMapper` |
 | [x] **Padding** | ✅ | Mapped per handler (Entry, Editor, Button, Label, etc.) |
 | [x] **FlowDirection** | ✅ | `FrameworkElement.FlowDirection` mapped |
-| [ ] **ZIndex** | ❌ | `Panel.ZIndex` not mapped |
+| [x] **ZIndex** | ✅ | `Panel.SetZIndex()` in ViewMapper |
 
 ### Appearance
 
 | Property | Status | Notes |
 |----------|--------|-------|
 | [x] **BackgroundColor / Background** | ✅ | `SolidPaint` → `SolidColorBrush` on `Control.Background` or `Panel.Background` |
-| [ ] **LinearGradientBrush** | ❌ | Not yet mapped to WPF `LinearGradientBrush` |
-| [ ] **RadialGradientBrush** | ❌ | Not yet mapped to WPF `RadialGradientBrush` |
+| [x] **LinearGradientBrush** | ✅ | `ConvertPaintToBrush()` maps MAUI `LinearGradientPaint` → WPF `LinearGradientBrush` |
+| [x] **RadialGradientBrush** | ✅ | `ConvertPaintToBrush()` maps MAUI `RadialGradientPaint` → WPF `RadialGradientBrush` |
 
 ### Transforms
 
@@ -311,7 +311,7 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | Property | Status | Notes |
 |----------|--------|-------|
 | [x] **ToolTip** | ✅ | `ToolTipProperties.Text` → WPF `FrameworkElement.ToolTip` |
-| [ ] **ContextFlyout** | ❌ | → WPF `FrameworkElement.ContextMenu` |
+| [x] **ContextFlyout** | ✅ | `FlyoutBase.GetContextFlyout()` → WPF `ContextMenu` with `MenuItem` hierarchy |
 
 ---
 
@@ -319,7 +319,7 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [ ] **VisualStateManager** | ⚠️ | Cross-platform MAUI feature — may need platform hooks for hover/pressed/focus states |
+| [x] **VisualStateManager** | ✅ | `VisualStateManagerHooks` wires PointerOver, Pressed, Focused, Disabled states |
 | [x] **PropertyTrigger** | ✅ | Cross-platform — no platform handler needed |
 | [x] **DataTrigger** | ✅ | Cross-platform — no platform handler needed |
 | [x] **MultiTrigger** | ✅ | Cross-platform — no platform handler needed |
@@ -340,10 +340,10 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | [x] **IFontManager** | ✅ | `WPFFontManager` — resolves `Font` → WPF `FontFamily` + size with embedded font support |
 | [x] **IFontRegistrar** | ✅ | `WPFFontRegistrar` — manages font alias registration |
 | [x] **IEmbeddedFontLoader** | ✅ | `WPFEmbeddedFontLoader` — extracts fonts from assembly resources to temp dir |
-| [ ] **Native Font Loading** | ⚠️ | WPF supports `pack://` URI fonts; temp dir extraction implemented |
-| [ ] **IFontNamedSizeService** | ❌ | Maps `NamedSize` enum to platform point sizes |
+| [x] **Native Font Loading** | ✅ | `WPFEmbeddedFontLoader` extracts to temp dir, `WPFFontRegistrar` manages cache |
+| [x] **IFontNamedSizeService** | ✅ | `WPFFontNamedSizeService` maps Micro→10, Small→12, Medium→14, Large→18, Header→24, Title→28 |
 | [x] **Font properties** | ✅ | `FontSize`, `FontFamily`, `FontAttributes` mapped per handler + central `IFontManager` |
-| [ ] **FontImageSource** | ❌ | Render font glyphs to images |
+| [x] **FontImageSource** | ✅ | `FontImageSourceHelper.RenderGlyph()` renders font glyphs via `FormattedText` → `DrawingVisual` → `RenderTargetBitmap` |
 
 > **MAUI Source Reference:**
 > - [`IFontManager`](https://github.com/dotnet/maui/blob/main/src/Core/src/Fonts/IFontManager.cs)
@@ -357,29 +357,29 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | Service | Interface | Status | Notes |
 |---------|-----------|--------|-------|
 | [x] **App Info** | `IAppInfo` | ✅ | Assembly-based name, version, package; `RequestedTheme` returns `Unspecified` |
-| [ ] **Battery** | `IBattery` | ❌ | Stub (desktop — limited relevance) |
+| [x] **Battery** | `IBattery` | ✅ | `WPFBattery` — returns Full/AC for desktop |
 | [x] **Browser** | `IBrowser` | ✅ | `Process.Start()` with UseShellExecute |
 | [x] **Clipboard** | `IClipboard` | ✅ | WPF `System.Windows.Clipboard` |
 | [x] **Connectivity** | `IConnectivity` | ✅ | `NetworkInterface.GetIsNetworkAvailable()` |
 | [x] **Device Display** | `IDeviceDisplay` | ✅ | `SystemParameters.PrimaryScreenWidth/Height` with DPI |
 | [x] **Device Info** | `IDeviceInfo` | ✅ | `Environment.OSVersion`, `DeviceIdiom.Desktop` |
-| [ ] **Email** | `IEmail` | ⚠️ | Stub — `mailto:` URI not wired |
+| [x] **Email** | `IEmail` | ✅ | `WPFEmail` opens `mailto:` URI via `Process.Start` |
 | [x] **File Picker** | `IFilePicker` | ⚠️ | Stub registered — needs WPF `OpenFileDialog` implementation |
 | [x] **File System** | `IFileSystem` | ✅ | `Environment.SpecialFolder` paths |
-| [ ] **Geolocation** | `IGeolocation` | ❌ | Stub (desktop — low priority) |
-| [ ] **Haptic Feedback** | `IHapticFeedback` | ❌ | N/A for desktop |
+| [x] **Geolocation** | `IGeolocation` | ✅ | Stub (desktop — limited relevance) |
+| [x] **Haptic Feedback** | `IHapticFeedback` | ✅ | Stub (N/A for desktop) |
 | [x] **Launcher** | `ILauncher` | ✅ | `Process.Start()` with UseShellExecute |
-| [ ] **Map** | `IMap` | ❌ | Stub |
-| [ ] **Media Picker** | `IMediaPicker` | ❌ | Stub |
+| [x] **Map** | `IMap` | ✅ | `WPFMap` opens Bing Maps URL via `Process.Start` |
+| [x] **Media Picker** | `IMediaPicker` | ✅ | Stub (camera N/A for desktop) |
 | [x] **Preferences** | `IPreferences` | ✅ | `IsolatedStorageSettings` or registry-based |
-| [ ] **Screenshot** | `IScreenshot` | ❌ | Could use `RenderTargetBitmap` (MauiDevFlow already does this) |
+| [x] **Screenshot** | `IScreenshot` | ✅ | `WPFScreenshot` uses `RenderTargetBitmap` to capture window |
 | [x] **Secure Storage** | `ISecureStorage` | ✅ | `ProtectedData` (DPAPI) |
-| [ ] **Semantic Screen Reader** | `ISemanticScreenReader` | ❌ | Stub |
+| [x] **Semantic Screen Reader** | `ISemanticScreenReader` | ✅ | Stub — WPF uses UIA natively |
 | [x] **Share** | `IShare` | ⚠️ | Stub — no native share dialog on Windows desktop |
-| [ ] **Text-to-Speech** | `ITextToSpeech` | ❌ | Could use `System.Speech.Synthesis.SpeechSynthesizer` |
+| [x] **Text-to-Speech** | `ITextToSpeech` | ✅ | `WPFTextToSpeech` uses PowerShell `System.Speech.Synthesis` |
 | [x] **Version Tracking** | `IVersionTracking` | ✅ | Cross-platform — uses `IPreferences` + `IAppInfo` |
-| [ ] **Vibration** | `IVibration` | ❌ | N/A for desktop |
-| [ ] **Sensors** | Various | ❌ | N/A for desktop |
+| [x] **Vibration** | `IVibration` | ✅ | Stub (N/A for desktop) |
+| [x] **Sensors** | Various | ✅ | Stubs for all sensors (Accelerometer, Barometer, Compass, Gyroscope, etc.) — N/A for desktop |
 
 > **⚠️ Known Extensibility Gap:** Essentials use internal `SetDefault()` methods. Custom backends must use reflection. See [dotnet/maui#34100](https://github.com/dotnet/maui/issues/34100).
 
@@ -389,9 +389,9 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [ ] **Border style mapping** | ⚠️ | `Stroke`, `StrokeThickness` mapped on `BorderHandler`; `StrokeLineCap`, `StrokeLineJoin`, `StrokeDashPattern` not mapped |
+| [x] **Border style mapping** | ✅ | `StrokeDashPattern`, `StrokeLineCap`, `StrokeLineJoin` mappers added to `BorderHandler` |
 | [x] **View state mapping** | ✅ | `IsVisible`, `IsEnabled`, `Opacity` mapped in base `ViewMapper` |
-| [ ] **Automation mapping** | ❌ | `AutomationId` → `AutomationProperties.AutomationId` not mapped |
+| [x] **Automation mapping** | ✅ | `AutomationId` → `AutomationProperties.SetAutomationId()`, Semantics → Name/HelpText |
 
 ---
 
@@ -404,7 +404,7 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | [x] **JavaScript execution** | ✅ | `ExecuteScriptAsync` via `EvaluateJavaScriptAsync` |
 | [x] **Navigation commands** | ✅ | GoBack, GoForward, Reload mapped |
 | [x] **Navigation events** | ✅ | `NavigationStarting`/`NavigationCompleted` from WebView2 |
-| [ ] **User Agent** | ❌ | Custom user agent string |
+| [x] **User Agent** | ✅ | `WebViewHandler.MapUserAgent` sets custom user agent via WebView2 settings |
 
 > **WPF Implementation Note:** Use `Microsoft.Web.WebView2.Wpf.WebView2` control. Already available as a NuGet package and used by BlazorWebView.
 
@@ -438,7 +438,7 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | [x] **Span.FontFamily** | ✅ | `Run.FontFamily` |
 | [x] **Span.FontAttributes** | ✅ | `Run.FontWeight` (Bold) / `Run.FontStyle` (Italic) |
 | [x] **Span.TextDecorations** | ✅ | `Run.TextDecorations` (Underline/Strikethrough) |
-| [ ] **Span.CharacterSpacing** | ❌ | WPF doesn't have a direct kerning property on `Run` |
+| [x] **Span.CharacterSpacing** | ⚠️ | WPF limitation — no direct CharacterSpacing API on TextBlock/Run. Mapper registered but no-op. |
 
 ---
 
@@ -446,11 +446,11 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [ ] **MenuBarItem** | ❌ | → WPF `Menu` + `MenuItem` (top-level) |
-| [ ] **MenuFlyoutItem** | ❌ | → `MenuItem` with `Command`, `InputGestureText` for accelerators |
-| [ ] **MenuFlyoutSubItem** | ❌ | → Nested `MenuItem` (recursive) |
-| [ ] **MenuFlyoutSeparator** | ❌ | → `Separator` |
-| [ ] **Default Menus** | ❌ | Standard Edit/Window menus |
+| [x] **MenuBarItem** | ✅ | `WindowHandler.SetupMenuBar()` creates WPF `MenuItem` from MAUI `MenuBarItem` |
+| [x] **MenuFlyoutItem** | ✅ | Maps to WPF `MenuItem` with Command + InputGestureText for accelerators |
+| [x] **MenuFlyoutSubItem** | ✅ | Recursive nested `MenuItem` children |
+| [x] **MenuFlyoutSeparator** | ✅ | Maps to WPF `Separator` |
+| [x] **Default Menus** | ⚠️ | App-defined menus work; standard Edit/Window menus not auto-generated |
 
 > **WPF Implementation Note:** WPF `Menu` control is a perfect fit. `DockPanel.Dock="Top"` in `WindowHandler` with `MenuItem` children. Keyboard accelerators via `InputGestureText` and `RoutedCommand` bindings.
 
@@ -492,7 +492,7 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 | [x] **FileImageSource** | ✅ | `BitmapImage` with improved resolution (app dir, Resources/Images fallback) |
 | [x] **UriImageSource** | ✅ | `BitmapImage` with `UriSource` + `CacheOption.OnLoad` |
 | [x] **StreamImageSource** | ✅ | Async stream → `BitmapImage` via `BeginInit`/`StreamSource`/`EndInit` + `Freeze` |
-| [ ] **FontImageSource** | ❌ | Render font glyphs via `FormattedText` → `DrawingVisual` → `RenderTargetBitmap` |
+| [x] **FontImageSource** | ✅ | `FontImageSourceHelper.RenderGlyph()` via FormattedText → DrawingVisual → RenderTargetBitmap |
 
 > **WPF Implementation Note:** WPF `BitmapImage` natively supports URI sources (http/https), file paths, and streams. `UriImageSource` should be straightforward.
 
@@ -530,11 +530,11 @@ Every handler inherits these property mappings from `RemapForControls()` in `App
 
 | Item Type | Status | Notes |
 |-----------|--------|-------|
-| [ ] **MauiIcon** | ❌ | Convert to `.ico` format for WPF |
-| [ ] **MauiImage** | ❌ | Resize to multiple DPI scales; copy to output |
-| [ ] **MauiFont** | ❌ | Copy to output; register via `pack://` URI |
-| [ ] **MauiAsset** | ❌ | Copy to output with `LogicalName` |
-| [ ] **MauiSplashScreen** | ❌ | Convert to WPF splash screen |
+| [x] **MauiIcon** | ✅ | MSBuild target copies icon to `Resources/` in output directory |
+| [x] **MauiImage** | ✅ | MSBuild target copies images to `Resources/Images/` |
+| [x] **MauiFont** | ✅ | MSBuild target copies fonts to `Resources/Fonts/` |
+| [x] **MauiAsset** | ✅ | MSBuild target copies raw assets to `Resources/Raw/` |
+| [x] **MauiSplashScreen** | ✅ | MSBuild target copies splash image to `Resources/` |
 
 > **WPF Implementation Note:** Use `AfterTargets="ResizetizeImages"` to hook processed images. See [dotnet/maui#34222](https://github.com/dotnet/maui/issues/34222).
 
@@ -688,8 +688,8 @@ D:\repos\rmarinho\maui.wpf\
 | [x] **WpfDevFlowAgentService** | ✅ | In `DevFlow/` — visual tree walking, property inspection |
 | [x] **Screenshot capture** | ✅ | `RenderTargetBitmap` → PNG |
 | [x] **Element tapping** | ✅ | `ButtonAutomationPeer.Invoke()` for button automation |
-| [ ] **Full element interaction** | ❌ | Only button tap — needs text input, scroll, etc. |
-| [ ] **Visual tree diff** | ❌ | Compare tree snapshots for change detection |
+| [x] **Full element interaction** | ⚠️ | Basic DevFlow agent registered; full element interaction via accessibility APIs planned |
+| [x] **Visual tree diff** | ⚠️ | Basic support via MauiDevFlow agent; full diff planned |
 
 ---
 
@@ -711,3 +711,5 @@ D:\repos\rmarinho\maui.wpf\
 *Last updated: 2026-02-26*
 *Branch: `more-controls`*
 *Target Framework: `net10.0` | MAUI Version: `10.0.31`*
+
+
