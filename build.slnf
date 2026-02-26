@@ -1,0 +1,9 @@
+{
+  "solution": {
+    "path": "Maui.WPF.sln",
+    "projects": [
+      "src\\Platform.Maui.WPF\\Platform.Maui.WPF.csproj",
+      "src\\Platform.Maui.Essentials.WPF\\Platform.Maui.Essentials.WPF.csproj"
+    ]
+  }
+}
