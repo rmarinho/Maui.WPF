@@ -61,6 +61,9 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.RoundRectangle, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Ellipse, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Line, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Path, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Polygon, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Polyline, ShapeViewHandler>();
 			handlersCollection.AddHandler<AspNetCore.Components.WebView.Maui.BlazorWebView, AspNetCore.Components.WebView.Maui.WPF.BlazorWebViewHandler>();
 
 			// Navigation handlers
@@ -115,6 +118,11 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 			// Initialize theme detection
 			Microsoft.Maui.Platform.WPF.ThemeManager.Initialize();
+
+			// Register font services
+			builder.Services.AddSingleton<IFontRegistrar, Microsoft.Maui.Platform.WPF.WPFFontRegistrar>();
+			builder.Services.AddSingleton<IEmbeddedFontLoader, Microsoft.Maui.Platform.WPF.WPFEmbeddedFontLoader>();
+			builder.Services.AddSingleton<IFontManager, Microsoft.Maui.Platform.WPF.WPFFontManager>();
 
 			builder.ConfigureImageSourceHandlers();
 			builder
