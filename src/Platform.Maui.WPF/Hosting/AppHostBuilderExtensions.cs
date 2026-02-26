@@ -68,6 +68,16 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<TabbedPage, TabbedViewHandler>();
 			handlersCollection.AddHandler<FlyoutPage, FlyoutViewHandler>();
 
+			// Collection handlers
+			handlersCollection.AddHandler<CollectionView, Microsoft.Maui.Handlers.WPF.CollectionViewHandler>();
+
+			// Additional control handlers
+			handlersCollection.AddHandler<RadioButton, RadioButtonHandler>();
+			handlersCollection.AddHandler<ImageButton, ImageButtonHandler>();
+
+			// WebView
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.WebView, WebViewHandler>();
+
 			return handlersCollection;
 		}
 
@@ -102,6 +112,9 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 			// Register alert/prompt/action sheet handler
 			Microsoft.Maui.Platform.WPF.WPFAlertManagerSubscription.Register(builder.Services);
+
+			// Initialize theme detection
+			Microsoft.Maui.Platform.WPF.ThemeManager.Initialize();
 
 			builder.ConfigureImageSourceHandlers();
 			builder
@@ -242,6 +255,169 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 				}
 			});
 
+			// Transforms — TranslationX/Y, Rotation, Scale, Anchor
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.TranslationX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.TranslationY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Rotation), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.RotationX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.RotationY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Scale), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ScaleX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ScaleY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AnchorX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AnchorY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+
+			// Shadow → DropShadowEffect
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Shadow), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+				{
+					var shadow = view.Shadow;
+					if (shadow != null && shadow.Paint is SolidPaint sp && sp.Color != null)
+					{
+						var c = sp.Color;
+						ue.Effect = new System.Windows.Media.Effects.DropShadowEffect
+						{
+							Color = System.Windows.Media.Color.FromArgb(
+								(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+								(byte)(c.Green * 255), (byte)(c.Blue * 255)),
+							BlurRadius = Math.Abs(shadow.Radius),
+							ShadowDepth = Math.Sqrt(shadow.Offset.X * shadow.Offset.X + shadow.Offset.Y * shadow.Offset.Y),
+							Direction = Math.Atan2(-shadow.Offset.Y, shadow.Offset.X) * 180.0 / Math.PI,
+							Opacity = shadow.Opacity
+						};
+					}
+					else
+					{
+						ue.Effect = null;
+					}
+				}
+			});
+
+			// Clip → UIElement.Clip
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Clip), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+				{
+					var clipShape = view.Clip;
+					if (clipShape != null)
+					{
+						try
+						{
+							var w = view.Frame.Width > 0 ? view.Frame.Width : 100;
+							var h = view.Frame.Height > 0 ? view.Frame.Height : 100;
+							var path = clipShape.PathForBounds(new Graphics.Rect(0, 0, w, h));
+							if (path != null)
+							{
+								var pathStr = path.ToDefinitionString();
+								if (!string.IsNullOrEmpty(pathStr))
+									ue.Clip = System.Windows.Media.Geometry.Parse(pathStr);
+							}
+						}
+						catch { }
+					}
+					else
+					{
+						ue.Clip = null;
+					}
+				}
+			});
+
+			// InputTransparent → IsHitTestVisible
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.InputTransparent), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+					ue.IsHitTestVisible = !view.InputTransparent;
+			});
+
+			// FlowDirection
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.FlowDirection), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					fe.FlowDirection = view.FlowDirection == Microsoft.Maui.FlowDirection.RightToLeft
+						? System.Windows.FlowDirection.RightToLeft
+						: System.Windows.FlowDirection.LeftToRight;
+				}
+			});
+
+			// AutomationId
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AutomationId), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue && !string.IsNullOrEmpty(view.AutomationId))
+					System.Windows.Automation.AutomationProperties.SetAutomationId(ue, view.AutomationId);
+			});
+
+			// Semantics → Accessibility
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Semantics), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue && view.Semantics != null)
+				{
+					if (!string.IsNullOrEmpty(view.Semantics.Description))
+						System.Windows.Automation.AutomationProperties.SetName(ue, view.Semantics.Description);
+					if (!string.IsNullOrEmpty(view.Semantics.Hint))
+						System.Windows.Automation.AutomationProperties.SetHelpText(ue, view.Semantics.Hint);
+				}
+			});
+
+			// ToolTip
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("ToolTip", (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					object? tip = null;
+					try
+					{
+						tip = ToolTipProperties.GetText(view as BindableObject);
+					}
+					catch { }
+					if (tip is string s && !string.IsNullOrEmpty(s))
+						fe.ToolTip = s;
+					else
+						fe.ToolTip = null;
+				}
+			});
+
 			// Wire gesture recognizers to WPF mouse events
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("GestureRecognizers", (handler, view, _) =>
 			{
@@ -253,5 +429,36 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 			return builder;
 		}
+
+		static void UpdateTransformGroup(System.Windows.FrameworkElement fe, IView view)
+		{
+			var group = fe.RenderTransform as System.Windows.Media.TransformGroup;
+			if (group == null)
+			{
+				group = new System.Windows.Media.TransformGroup();
+				group.Children.Add(new System.Windows.Media.ScaleTransform());
+				group.Children.Add(new System.Windows.Media.RotateTransform());
+				group.Children.Add(new System.Windows.Media.TranslateTransform());
+				fe.RenderTransform = group;
+			}
+
+			if (group.Children[0] is System.Windows.Media.ScaleTransform scale)
+			{
+				scale.ScaleX = view.Scale * view.ScaleX;
+				scale.ScaleY = view.Scale * view.ScaleY;
+			}
+			if (group.Children[1] is System.Windows.Media.RotateTransform rotate)
+			{
+				rotate.Angle = view.Rotation;
+			}
+			if (group.Children[2] is System.Windows.Media.TranslateTransform translate)
+			{
+				translate.X = view.TranslationX;
+				translate.Y = view.TranslationY;
+			}
+
+			fe.RenderTransformOrigin = new System.Windows.Point(view.AnchorX, view.AnchorY);
+		}
+
 	}
 }

@@ -42,12 +42,19 @@ namespace Microsoft.Maui.Handlers.WPF
 		ILogger? Logger =>
 			_logger ??= MauiContext?.Services.GetService<ILogger<ApplicationHandler>>();
 
-		protected override PlatformView CreatePlatformElement() =>
-			MauiContext?.Services.GetService<PlatformView>() ?? throw new InvalidOperationException($"MauiContext did not have a valid application.");
+		protected override PlatformView CreatePlatformElement()
+		{
+			var app = MauiContext?.Services.GetService<PlatformView>() ?? throw new InvalidOperationException($"MauiContext did not have a valid application.");
+
+			// Wire lifecycle events
+			Platform.WPF.LifecycleManager.RegisterLifecycleEvents(app, VirtualView);
+
+			return app;
+		}
 
 		public static void MapTerminate(ApplicationHandler handler, IApplication application, object? args)
 		{
-			//handler.PlatformView.Exit();
+			handler.PlatformView?.Shutdown();
 		}
 
 		public static void MapOpenWindow(ApplicationHandler handler, IApplication application, object? args)
@@ -59,7 +66,7 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (args is IWindow window)
 			{
-				//(window.Handler?.PlatformView as Window)?.Close();
+				(window.Handler?.PlatformView as System.Windows.Window)?.Close();
 			}
 		}
 	}
