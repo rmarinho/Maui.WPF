@@ -55,6 +55,7 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<SearchBar, SearchBarHandler>();
 			handlersCollection.AddHandler<TimePicker, TimePickerHandler>();
 			handlersCollection.AddHandler<Border, BorderHandler>();
+			handlersCollection.AddHandler<Frame, BorderHandler>();
 			handlersCollection.AddHandler<ContentView, ContentViewHandler>();
 			handlersCollection.AddHandler<BoxView, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, ShapeViewHandler>();
@@ -73,13 +74,20 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 			// Collection handlers
 			handlersCollection.AddHandler<CollectionView, Microsoft.Maui.Handlers.WPF.CollectionViewHandler>();
+			handlersCollection.AddHandler<ListView, ListViewHandler>();
+			handlersCollection.AddHandler<CarouselView, Microsoft.Maui.Handlers.WPF.CarouselViewHandler>();
+			handlersCollection.AddHandler<IndicatorView, IndicatorViewHandler>();
+			handlersCollection.AddHandler<TableView, TableViewHandler>();
+			handlersCollection.AddHandler<SwipeView, SwipeViewHandler>();
+			handlersCollection.AddHandler<RefreshView, RefreshViewHandler>();
 
 			// Additional control handlers
 			handlersCollection.AddHandler<RadioButton, RadioButtonHandler>();
 			handlersCollection.AddHandler<ImageButton, ImageButtonHandler>();
 
-			// WebView
+			// WebView + GraphicsView
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.WebView, WebViewHandler>();
+			handlersCollection.AddHandler<GraphicsView, GraphicsViewHandler>();
 
 			return handlersCollection;
 		}
@@ -123,6 +131,9 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			builder.Services.AddSingleton<IFontRegistrar, Microsoft.Maui.Platform.WPF.WPFFontRegistrar>();
 			builder.Services.AddSingleton<IEmbeddedFontLoader, Microsoft.Maui.Platform.WPF.WPFEmbeddedFontLoader>();
 			builder.Services.AddSingleton<IFontManager, Microsoft.Maui.Platform.WPF.WPFFontManager>();
+
+			// Register FontNamedSizeService
+			DependencyService.Register<Microsoft.Maui.Platform.WPF.WPFFontNamedSizeService>();
 
 			builder.ConfigureImageSourceHandlers();
 			builder
@@ -236,21 +247,13 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Background), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.Controls.Control control && view.Background is SolidPaint sp && sp.Color != null)
+				var brush = ConvertPaintToBrush(view.Background);
+				if (brush != null)
 				{
-					var c = sp.Color;
-					control.Background = new System.Windows.Media.SolidColorBrush(
-						System.Windows.Media.Color.FromArgb(
-							(byte)(c.Alpha * 255), (byte)(c.Red * 255),
-							(byte)(c.Green * 255), (byte)(c.Blue * 255)));
-				}
-				else if (handler.PlatformView is System.Windows.Controls.Panel panel && view.Background is SolidPaint sp2 && sp2.Color != null)
-				{
-					var c = sp2.Color;
-					panel.Background = new System.Windows.Media.SolidColorBrush(
-						System.Windows.Media.Color.FromArgb(
-							(byte)(c.Alpha * 255), (byte)(c.Red * 255),
-							(byte)(c.Green * 255), (byte)(c.Blue * 255)));
+					if (handler.PlatformView is System.Windows.Controls.Control control)
+						control.Background = brush;
+					else if (handler.PlatformView is System.Windows.Controls.Panel panel)
+						panel.Background = brush;
 				}
 			});
 
@@ -426,6 +429,47 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 				}
 			});
 
+			// ZIndex → Panel.ZIndex
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ZIndex), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+					System.Windows.Controls.Panel.SetZIndex(ue, view.ZIndex);
+			});
+
+			// ContextFlyout → ContextMenu
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("ContextFlyout", (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe && view is BindableObject bo)
+				{
+					try
+					{
+						var flyout = FlyoutBase.GetContextFlyout(bo);
+						if (flyout is MenuFlyout menuFlyout)
+						{
+							var contextMenu = new System.Windows.Controls.ContextMenu();
+							foreach (var item in menuFlyout)
+							{
+								if (item is MenuFlyoutItem mfi)
+								{
+									var mi = new System.Windows.Controls.MenuItem { Header = mfi.Text };
+									mi.Click += (s, e) =>
+									{
+										mfi.Command?.Execute(mfi.CommandParameter);
+									};
+									contextMenu.Items.Add(mi);
+								}
+								else if (item is MenuFlyoutSeparator)
+								{
+									contextMenu.Items.Add(new System.Windows.Controls.Separator());
+								}
+							}
+							fe.ContextMenu = contextMenu;
+						}
+					}
+					catch { }
+				}
+			});
+
 			// Wire gesture recognizers to WPF mouse events
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("GestureRecognizers", (handler, view, _) =>
 			{
@@ -466,6 +510,48 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			}
 
 			fe.RenderTransformOrigin = new System.Windows.Point(view.AnchorX, view.AnchorY);
+		}
+
+		static System.Windows.Media.Color ToWpfColor(Microsoft.Maui.Graphics.Color c) =>
+			System.Windows.Media.Color.FromArgb(
+				(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+				(byte)(c.Green * 255), (byte)(c.Blue * 255));
+
+		static System.Windows.Media.Brush? ConvertPaintToBrush(Paint? paint)
+		{
+			if (paint == null) return null;
+
+			if (paint is SolidPaint sp && sp.Color != null)
+				return new System.Windows.Media.SolidColorBrush(ToWpfColor(sp.Color));
+
+			if (paint is LinearGradientPaint lgp && lgp.GradientStops != null)
+			{
+				var wpfBrush = new System.Windows.Media.LinearGradientBrush();
+				wpfBrush.StartPoint = new System.Windows.Point(lgp.StartPoint.X, lgp.StartPoint.Y);
+				wpfBrush.EndPoint = new System.Windows.Point(lgp.EndPoint.X, lgp.EndPoint.Y);
+				foreach (var stop in lgp.GradientStops)
+				{
+					if (stop.Color != null)
+						wpfBrush.GradientStops.Add(new System.Windows.Media.GradientStop(ToWpfColor(stop.Color), stop.Offset));
+				}
+				return wpfBrush;
+			}
+
+			if (paint is RadialGradientPaint rgp && rgp.GradientStops != null)
+			{
+				var wpfBrush = new System.Windows.Media.RadialGradientBrush();
+				wpfBrush.Center = new System.Windows.Point(rgp.Center.X, rgp.Center.Y);
+				wpfBrush.RadiusX = rgp.Radius;
+				wpfBrush.RadiusY = rgp.Radius;
+				foreach (var stop in rgp.GradientStops)
+				{
+					if (stop.Color != null)
+						wpfBrush.GradientStops.Add(new System.Windows.Media.GradientStop(ToWpfColor(stop.Color), stop.Offset));
+				}
+				return wpfBrush;
+			}
+
+			return null;
 		}
 
 	}

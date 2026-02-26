@@ -47,6 +47,9 @@ namespace Microsoft.Maui.Platform.WPF
 					case DropGestureRecognizer drop:
 						AddDropGesture(platformView, drop);
 						break;
+					case PinchGestureRecognizer pinch:
+						AddPinchGesture(platformView, pinch);
+						break;
 				}
 			}
 
@@ -368,6 +371,76 @@ namespace Microsoft.Maui.Platform.WPF
 			{
 				view.DragOver -= dragOverHandler;
 				view.Drop -= dropHandler;
+			}));
+		}
+
+		#endregion
+
+		#region Pinch Gesture
+
+		static void AddPinchGesture(FrameworkElement view, PinchGestureRecognizer pinch)
+		{
+			// WPF doesn't have native pinch — map Ctrl+MouseWheel to zoom
+			double currentScale = 1.0;
+			bool isPinching = false;
+
+			MouseWheelEventHandler wheelHandler = (s, e) =>
+			{
+				if ((System.Windows.Input.Keyboard.Modifiers & ModifierKeys.Control) != 0)
+				{
+					var parent = FindParentView(pinch);
+					if (!isPinching)
+					{
+						isPinching = true;
+						try
+						{
+							var startMethod = typeof(PinchGestureRecognizer).GetMethod("SendPinchStarted",
+								BindingFlags.Instance | BindingFlags.NonPublic);
+							startMethod?.Invoke(pinch, new object?[] { parent, null });
+						}
+						catch { }
+					}
+
+					double delta = e.Delta > 0 ? 1.1 : 0.9;
+					currentScale *= delta;
+
+					try
+					{
+						var updateMethod = typeof(PinchGestureRecognizer).GetMethod("SendPinch",
+							BindingFlags.Instance | BindingFlags.NonPublic);
+						updateMethod?.Invoke(pinch, new object?[] { parent, currentScale, null, GestureStatus.Running });
+					}
+					catch { }
+
+					e.Handled = true;
+				}
+			};
+
+			MouseEventHandler leaveHandler = (s, e) =>
+			{
+				if (isPinching)
+				{
+					isPinching = false;
+					currentScale = 1.0;
+					try
+					{
+						var endMethod = typeof(PinchGestureRecognizer).GetMethod("SendPinchEnded",
+							BindingFlags.Instance | BindingFlags.NonPublic);
+						var parent = FindParentView(pinch);
+						endMethod?.Invoke(pinch, new object?[] { parent });
+					}
+					catch { }
+				}
+			};
+
+			view.MouseWheel += wheelHandler;
+			view.MouseLeave += leaveHandler;
+			EnsureHitTestable(view);
+
+			GetCleanups(view).Add(new GestureCleanup(() =>
+			{
+				view.MouseWheel -= wheelHandler;
+				view.MouseLeave -= leaveHandler;
 			}));
 		}
 

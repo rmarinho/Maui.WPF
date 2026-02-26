@@ -13,6 +13,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			new(ViewMapper)
 			{
 				[nameof(Microsoft.Maui.Controls.WebView.Source)] = MapSource,
+				["UserAgent"] = MapUserAgent,
 			};
 
 		public static readonly CommandMapper<Microsoft.Maui.Controls.WebView, WebViewHandler> CommandMapper =
@@ -130,6 +131,23 @@ namespace Microsoft.Maui.Handlers.WPF
 			{
 				request.SetResult(null);
 			}
+		}
+
+		static void MapUserAgent(WebViewHandler handler, Microsoft.Maui.Controls.WebView view)
+		{
+			_ = handler.SetUserAgentAsync(view);
+		}
+
+		async Task SetUserAgentAsync(Microsoft.Maui.Controls.WebView view)
+		{
+			try
+			{
+				await PlatformView.EnsureCoreWebView2Async();
+				var userAgent = view.GetType().GetProperty("UserAgent")?.GetValue(view) as string;
+				if (!string.IsNullOrEmpty(userAgent))
+					PlatformView.CoreWebView2.Settings.UserAgent = userAgent;
+			}
+			catch { }
 		}
 
 		protected override void DisconnectHandler(WebView2 platformView)
