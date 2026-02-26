@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.WPF.Views.BorderDemoPage">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="10">
+            <Button Text="← Back" Clicked="OnBackClicked" HorizontalOptions="Start" />
+            <Label Text="Border Demo" FontSize="24" FontAttributes="Bold" />
+            <BoxView HeightRequest="1" Color="Gray" Margin="0,0,0,10" />
+
+            <Label Text="Border with RoundRectangle:" FontSize="18" />
+            <Border Stroke="Blue" StrokeThickness="2" Padding="10">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Label Text="Rounded border with blue stroke" FontSize="16" />
+            </Border>
+
+            <Label Text="Border with red stroke:" FontSize="18" Margin="0,10,0,0" />
+            <Border Stroke="Red" StrokeThickness="3" Padding="10">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="20" />
+                </Border.StrokeShape>
+                <Label Text="Thicker red rounded border" FontSize="16" />
+            </Border>
+
+            <Label Text="Border wrapping an Image placeholder:" FontSize="18" Margin="0,10,0,0" />
+            <Border Stroke="Green" StrokeThickness="2" Padding="5" HorizontalOptions="Start">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <BoxView WidthRequest="120" HeightRequest="80" Color="LightGray" />
+            </Border>
+
+            <Label Text="Border with no corner radius:" FontSize="18" Margin="0,10,0,0" />
+            <Border Stroke="Purple" StrokeThickness="1" Padding="10">
+                <Label Text="Simple rectangular border" FontSize="16" />
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,136 +1,44 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<maui:ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:Maui.Controls.Sample.WPF"
-             x:Class="Maui.Controls.Sample.WPF.MainPage"                     
-             xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=Microsoft.Maui.Controls"  
-             xmlns:blazor="clr-namespace:Microsoft.AspNetCore.Components.WebView.Maui;assembly=Microsoft.AspNetCore.Components.WebView.Maui"
-             >
+             x:Class="Maui.Controls.Sample.WPF.MainPage">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="15">
+        <VerticalStackLayout Padding="20" Spacing="8">
 
-            <!-- Label -->
-            <Label Text="🎉 .NET MAUI on WPF - All Controls Showcase"
-                   FontSize="22" />
+            <Label Text="Controls Gallery"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   HorizontalTextAlignment="Center" />
 
-            <Label Text="This page demonstrates all implemented WPF handlers."
-                   FontSize="14" />
+            <Label Text="WPF Backend"
+                   FontSize="16"
+                   TextColor="Gray"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,0,0,10" />
 
-            <BoxView HeightRequest="2" Color="Gray" />
+            <BoxView HeightRequest="2" Color="Gray" Margin="0,0,0,10" />
 
-            <!-- Button -->
-            <Label Text="Button:" FontSize="16" />
-            <Button x:Name="CounterBtn" Text="Click me - Count: 0" Clicked="OnCounterClicked" />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- Entry -->
-            <Label Text="Entry (TextBox):" FontSize="16" />
-            <Entry x:Name="MyEntry" Placeholder="Type something here..." Text="Hello WPF!" />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- Editor -->
-            <Label Text="Editor (Multi-line TextBox):" FontSize="16" />
-            <Editor Text="This is a multi-line&#10;text editor control." HeightRequest="80" />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- CheckBox -->
-            <Label Text="CheckBox:" FontSize="16" />
-            <HorizontalStackLayout Spacing="10">
-                <CheckBox IsChecked="True" />
-                <Label Text="I accept the terms" VerticalTextAlignment="Center" />
-            </HorizontalStackLayout>
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- Switch -->
-            <Label Text="Switch (Toggle):" FontSize="16" />
-            <HorizontalStackLayout Spacing="10">
-                <Switch IsToggled="True" />
-                <Label Text="Dark Mode" VerticalTextAlignment="Center" />
-            </HorizontalStackLayout>
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- Slider -->
-            <Label Text="Slider:" FontSize="16" />
-            <Slider Minimum="0" Maximum="100" Value="50" />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- ProgressBar -->
-            <Label Text="ProgressBar:" FontSize="16" />
-            <ProgressBar Progress="0.65" ProgressColor="Purple" />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- ActivityIndicator -->
-            <Label Text="ActivityIndicator:" FontSize="16" />
-            <ActivityIndicator IsRunning="True" Color="Blue" />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- DatePicker -->
-            <Label Text="DatePicker:" FontSize="16" />
-            <DatePicker />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- TimePicker -->
-            <Label Text="TimePicker:" FontSize="16" />
-            <TimePicker Time="14:30" />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- Picker (ComboBox) -->
-            <Label Text="Picker (ComboBox):" FontSize="16" />
-            <Picker Title="Select a color">
-                <Picker.ItemsSource>
-                    <x:Array Type="{x:Type x:String}">
-                        <x:String>Red</x:String>
-                        <x:String>Green</x:String>
-                        <x:String>Blue</x:String>
-                        <x:String>Yellow</x:String>
-                    </x:Array>
-                </Picker.ItemsSource>
-            </Picker>
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- Stepper -->
-            <Label Text="Stepper:" FontSize="16" />
-            <HorizontalStackLayout Spacing="10">
-                <Stepper Minimum="0" Maximum="10" Value="5" />
-                <Label Text="Value: 5" VerticalTextAlignment="Center" />
-            </HorizontalStackLayout>
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- SearchBar -->
-            <Label Text="SearchBar:" FontSize="16" />
-            <SearchBar Placeholder="Search..." />
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- Border -->
-            <Label Text="Border:" FontSize="16" />
-            <Border Stroke="Purple" StrokeThickness="2" Padding="10">
-                <Label Text="Content inside a Border control" />
-            </Border>
-
-            <BoxView HeightRequest="1" Color="LightGray" />
-
-            <!-- BoxView -->
-            <Label Text="BoxView (colored rectangle):" FontSize="16" />
-            <BoxView Color="CornflowerBlue" HeightRequest="50" WidthRequest="200" />
-
-            <BoxView HeightRequest="20" Color="Transparent" />
-            <Label Text="✅ All controls rendered successfully!" FontSize="18" TextColor="Green" />
+            <Button Text="Label" Clicked="OnLabelClicked" Margin="0,2" />
+            <Button Text="Button" Clicked="OnButtonClicked" Margin="0,2" />
+            <Button Text="Entry" Clicked="OnEntryClicked" Margin="0,2" />
+            <Button Text="Editor" Clicked="OnEditorClicked" Margin="0,2" />
+            <Button Text="CheckBox" Clicked="OnCheckBoxClicked" Margin="0,2" />
+            <Button Text="Switch" Clicked="OnSwitchClicked" Margin="0,2" />
+            <Button Text="Slider" Clicked="OnSliderClicked" Margin="0,2" />
+            <Button Text="ProgressBar" Clicked="OnProgressBarClicked" Margin="0,2" />
+            <Button Text="ActivityIndicator" Clicked="OnActivityIndicatorClicked" Margin="0,2" />
+            <Button Text="DatePicker" Clicked="OnDatePickerClicked" Margin="0,2" />
+            <Button Text="TimePicker" Clicked="OnTimePickerClicked" Margin="0,2" />
+            <Button Text="Picker" Clicked="OnPickerClicked" Margin="0,2" />
+            <Button Text="Stepper" Clicked="OnStepperClicked" Margin="0,2" />
+            <Button Text="SearchBar" Clicked="OnSearchBarClicked" Margin="0,2" />
+            <Button Text="Border" Clicked="OnBorderClicked" Margin="0,2" />
+            <Button Text="BoxView" Clicked="OnBoxViewClicked" Margin="0,2" />
+            <Button Text="ScrollView" Clicked="OnScrollViewClicked" Margin="0,2" />
+            <Button Text="Shapes (Ellipse / Rectangle / Line)" Clicked="OnShapesClicked" Margin="0,2" />
 
         </VerticalStackLayout>
     </ScrollView>
 
-</maui:ContentPage>
+</ContentPage>

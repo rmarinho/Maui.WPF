@@ -29,6 +29,8 @@
 	<ItemGroup>
 		<Page Remove="MainPage.Xaml"></Page>
 		<MauiXaml Include="MainPage.Xaml"></MauiXaml>
+		<Page Remove="Views\*.xaml" />
+		<MauiXaml Include="Views\*.xaml" />
 	</ItemGroup>
 
 </Project>
