@@ -23,8 +23,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Platform.Maui.WPF\Platform.Maui.WPF.csproj" />
-	  <ProjectReference Include="..\Platform.Maui.Essentials.WPF\Platform.Maui.Essentials.WPF.csproj" />
+	  <ProjectReference Include="..\..\src\Platform.Maui.WPF\Platform.Maui.WPF.csproj" />
+	  <ProjectReference Include="..\..\src\Platform.Maui.Essentials.WPF\Platform.Maui.Essentials.WPF.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
