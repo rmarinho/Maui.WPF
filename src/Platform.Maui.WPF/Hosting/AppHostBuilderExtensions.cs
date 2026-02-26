@@ -71,6 +71,7 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<NavigationPage, NavigationViewHandler>();
 			handlersCollection.AddHandler<TabbedPage, TabbedViewHandler>();
 			handlersCollection.AddHandler<FlyoutPage, FlyoutViewHandler>();
+			handlersCollection.AddHandler<Shell, ShellHandler>();
 
 			// Collection handlers
 			handlersCollection.AddHandler<CollectionView, Microsoft.Maui.Handlers.WPF.CollectionViewHandler>();
@@ -476,6 +477,8 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 				if (handler.PlatformView is System.Windows.FrameworkElement fe)
 				{
 					Microsoft.Maui.Platform.WPF.GestureManager.SetupGestures(fe, view);
+					// Hook VisualStateManager for hover/pressed/focused states
+					Microsoft.Maui.Platform.WPF.VisualStateManagerHooks.AttachVisualStateHooks(fe, view);
 				}
 			});
 

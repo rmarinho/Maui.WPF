@@ -56,19 +56,14 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (platformView.Content is null)
 				platformView.Content = new WindowRootViewContainer();
 
-			// update the platform window with the user size/position
-			//platformView.UpdatePosition(VirtualView);
-			//platformView.UpdateSize(VirtualView);
+			// Set up modal navigation overlay host
+			Microsoft.Maui.Platform.WPF.ModalNavigationManager.EnsureOverlayHost(platformView);
 
-			//var appWindow = platformView.GetAppWindow();
-			//if (appWindow is not null)
-			//{
-			//	// then pass the actual size back to the user
-			//	UpdateVirtualViewFrame(appWindow);
-
-			//	// THEN attach the event to reduce churn
-			//	appWindow.Changed += OnWindowChanged;
-			//}
+			// Wire up MenuBar if the window's page has one
+			if (VirtualView?.Content is IMenuBarElement menuBarElement && menuBarElement.MenuBar?.Count > 0)
+			{
+				SetupMenuBar(platformView, menuBarElement);
+			}
 		}
 
 		protected override void DisconnectHandler(PlatformView platformView)
@@ -161,6 +156,66 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (handler.PlatformView != null && !double.IsNaN(view.MinimumHeight) && view.MinimumHeight >= 0)
 				handler.PlatformView.MinHeight = view.MinimumHeight;
+		}
+
+		static void SetupMenuBar(System.Windows.Window window, IMenuBarElement menuBarElement)
+		{
+			if (menuBarElement.MenuBar == null || menuBarElement.MenuBar.Count == 0) return;
+
+			var wpfMenu = new System.Windows.Controls.Menu();
+
+			foreach (var barItem in menuBarElement.MenuBar)
+			{
+				if (barItem is Microsoft.Maui.Controls.MenuBarItem mbi)
+				{
+					var topItem = new System.Windows.Controls.MenuItem { Header = mbi.Text ?? "Menu" };
+					foreach (var child in mbi)
+					{
+						AddMenuFlyoutItem(topItem, child);
+					}
+					wpfMenu.Items.Add(topItem);
+				}
+			}
+
+			// Insert menu at top of window content
+			if (window.Content is System.Windows.Controls.Panel panel)
+			{
+				panel.Children.Insert(0, wpfMenu);
+			}
+			else if (window.Content is System.Windows.UIElement existing)
+			{
+				var dock = new System.Windows.Controls.DockPanel();
+				window.Content = dock;
+				System.Windows.Controls.DockPanel.SetDock(wpfMenu, System.Windows.Controls.Dock.Top);
+				dock.Children.Add(wpfMenu);
+				dock.Children.Add(existing);
+			}
+		}
+
+		static void AddMenuFlyoutItem(System.Windows.Controls.MenuItem parent, Microsoft.Maui.IMenuElement element)
+		{
+			if (element is Microsoft.Maui.Controls.MenuFlyoutItem mfi)
+			{
+				var mi = new System.Windows.Controls.MenuItem { Header = mfi.Text };
+				if (mfi.KeyboardAccelerators?.Count > 0)
+				{
+					var accel = mfi.KeyboardAccelerators[0];
+					mi.InputGestureText = accel.Key.ToString();
+				}
+				mi.Click += (s, e) => mfi.Command?.Execute(mfi.CommandParameter);
+				parent.Items.Add(mi);
+			}
+			else if (element is Microsoft.Maui.Controls.MenuFlyoutSubItem subItem)
+			{
+				var mi = new System.Windows.Controls.MenuItem { Header = subItem.Text };
+				foreach (var child in subItem)
+					AddMenuFlyoutItem(mi, child);
+				parent.Items.Add(mi);
+			}
+			else if (element is Microsoft.Maui.Controls.MenuFlyoutSeparator)
+			{
+				parent.Items.Add(new System.Windows.Controls.Separator());
+			}
 		}
 
 		//public static void MapToolbar(IWindowHandler handler, IWindow view)

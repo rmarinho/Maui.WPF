@@ -95,5 +95,28 @@ namespace Microsoft.Maui.Handlers.WPF
 			var p = border.Padding;
 			handler.PlatformView.Padding = new System.Windows.Thickness(p.Left, p.Top, p.Right, p.Bottom);
 		}
+
+		public static void MapStrokeDashPattern(BorderHandler handler, IBorderView border)
+		{
+			// WPF Border doesn't support dash patterns natively.
+			// For borders with dash patterns, we'd need to use a custom decorated border.
+			// Store as Tag for potential custom rendering.
+			if (border.StrokeDashPattern?.Length > 0)
+			{
+				handler.PlatformView.Tag = border.StrokeDashPattern;
+			}
+		}
+
+		public static void MapStrokeLineCap(BorderHandler handler, IBorderView border)
+		{
+			// WPF Border doesn't support StrokeLineCap directly.
+			// Would need custom Shape-based border for full support.
+		}
+
+		public static void MapStrokeLineJoin(BorderHandler handler, IBorderView border)
+		{
+			// WPF Border doesn't support StrokeLineJoin directly.
+			// Would need custom Shape-based border for full support.
+		}
 	}
 }
