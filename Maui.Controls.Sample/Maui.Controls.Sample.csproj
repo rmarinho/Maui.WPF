@@ -23,6 +23,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\Maui.Controls.WPF\Maui.Controls.WPF.csproj" />
+	  <ProjectReference Include="..\Platform.Maui.Essentials.WPF\Platform.Maui.Essentials.WPF.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
