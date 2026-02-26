@@ -39,6 +39,28 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<Label, LabelHandler>();
 			handlersCollection.AddHandler<ContentPage, PageHandler>();
 			handlersCollection.AddHandler<Layout, LayoutHandler>();
+			handlersCollection.AddHandler<Button, ButtonHandler>();
+			handlersCollection.AddHandler<Entry, EntryHandler>();
+			handlersCollection.AddHandler<Editor, EditorHandler>();
+			handlersCollection.AddHandler<Image, ImageHandler>();
+			handlersCollection.AddHandler<ScrollView, ScrollViewHandler>();
+			handlersCollection.AddHandler<ActivityIndicator, ActivityIndicatorHandler>();
+			handlersCollection.AddHandler<ProgressBar, ProgressBarHandler>();
+			handlersCollection.AddHandler<Slider, SliderHandler>();
+			handlersCollection.AddHandler<Switch, SwitchHandler>();
+			handlersCollection.AddHandler<Picker, PickerHandler>();
+			handlersCollection.AddHandler<DatePicker, DatePickerHandler>();
+			handlersCollection.AddHandler<Stepper, StepperHandler>();
+			handlersCollection.AddHandler<CheckBox, CheckBoxHandler>();
+			handlersCollection.AddHandler<SearchBar, SearchBarHandler>();
+			handlersCollection.AddHandler<TimePicker, TimePickerHandler>();
+			handlersCollection.AddHandler<Border, BorderHandler>();
+			handlersCollection.AddHandler<ContentView, ContentViewHandler>();
+			handlersCollection.AddHandler<BoxView, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.RoundRectangle, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Ellipse, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Line, ShapeViewHandler>();
 			handlersCollection.AddHandler<AspNetCore.Components.WebView.Maui.BlazorWebView, AspNetCore.Components.WebView.Maui.WPF.BlazorWebViewHandler>();
 
 			return handlersCollection;
