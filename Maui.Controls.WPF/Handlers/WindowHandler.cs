@@ -14,19 +14,16 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static IPropertyMapper<IWindow, WindowHandler> Mapper = new PropertyMapper<IWindow, WindowHandler>(ElementHandler.ElementMapper)
 		{
-			//[nameof(IWindow.Title)] = MapTitle,
+			[nameof(IWindow.Title)] = MapTitle,
 			[nameof(IWindow.Content)] = MapContent,
-			//[nameof(IWindow.X)] = MapX,
-			//[nameof(IWindow.Y)] = MapY,
-			//[nameof(IWindow.Width)] = MapWidth,
-			//[nameof(IWindow.Height)] = MapHeight,
-			//[nameof(IWindow.MaximumWidth)] = MapMaximumWidth,
-			//[nameof(IWindow.MaximumHeight)] = MapMaximumHeight,
-			//[nameof(IWindow.MinimumWidth)] = MapMinimumWidth,
-			//[nameof(IWindow.MinimumHeight)] = MapMinimumHeight,
-			//[nameof(IToolbarElement.Toolbar)] = MapToolbar,
-			//[nameof(IMenuBarElement.MenuBar)] = MapMenuBar,
-			//[nameof(IWindow.FlowDirection)] = MapFlowDirection,
+			[nameof(IWindow.Width)] = MapWidth,
+			[nameof(IWindow.Height)] = MapHeight,
+			[nameof(IWindow.X)] = MapX,
+			[nameof(IWindow.Y)] = MapY,
+			[nameof(IWindow.MaximumWidth)] = MapMaximumWidth,
+			[nameof(IWindow.MaximumHeight)] = MapMaximumHeight,
+			[nameof(IWindow.MinimumWidth)] = MapMinimumWidth,
+			[nameof(IWindow.MinimumHeight)] = MapMinimumHeight,
 		};
 
 		public static CommandMapper<IWindow, IWindowHandler> CommandMapper = new(ElementCommandMapper)
@@ -93,8 +90,11 @@ namespace Microsoft.Maui.Handlers.WPF
 			base.DisconnectHandler(platformView);
 		}
 
-		//public static void MapTitle(IWindowHandler handler, IWindow window) =>
-		//	handler.PlatformView?.UpdateTitle(window);
+		public static void MapTitle(WindowHandler handler, IWindow window)
+		{
+			if (handler.PlatformView != null)
+				handler.PlatformView.Title = window.Title ?? string.Empty;
+		}
 
 		public static void MapContent(WindowHandler handler, IWindow window)
 		{
@@ -115,29 +115,53 @@ namespace Microsoft.Maui.Handlers.WPF
 			//	window.VisualDiagnosticsOverlay.Initialize();
 		}
 
-		//public static void MapX(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateX(view);
+		public static void MapX(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.X) && view.X >= 0)
+				handler.PlatformView.Left = view.X;
+		}
 
-		//public static void MapY(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateY(view);
+		public static void MapY(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.Y) && view.Y >= 0)
+				handler.PlatformView.Top = view.Y;
+		}
 
-		//public static void MapWidth(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateWidth(view);
+		public static void MapWidth(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.Width) && view.Width >= 0)
+				handler.PlatformView.Width = view.Width;
+		}
 
-		//public static void MapHeight(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateHeight(view);
+		public static void MapHeight(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.Height) && view.Height >= 0)
+				handler.PlatformView.Height = view.Height;
+		}
 
-		//public static void MapMaximumWidth(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateMaximumWidth(view);
+		public static void MapMaximumWidth(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.MaximumWidth) && !double.IsInfinity(view.MaximumWidth))
+				handler.PlatformView.MaxWidth = view.MaximumWidth;
+		}
 
-		//public static void MapMaximumHeight(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateMaximumHeight(view);
+		public static void MapMaximumHeight(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.MaximumHeight) && !double.IsInfinity(view.MaximumHeight))
+				handler.PlatformView.MaxHeight = view.MaximumHeight;
+		}
 
-		//public static void MapMinimumWidth(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateMinimumWidth(view);
+		public static void MapMinimumWidth(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.MinimumWidth) && view.MinimumWidth >= 0)
+				handler.PlatformView.MinWidth = view.MinimumWidth;
+		}
 
-		//public static void MapMinimumHeight(IWindowHandler handler, IWindow view) =>
-		//	handler.PlatformView?.UpdateMinimumHeight(view);
+		public static void MapMinimumHeight(WindowHandler handler, IWindow view)
+		{
+			if (handler.PlatformView != null && !double.IsNaN(view.MinimumHeight) && view.MinimumHeight >= 0)
+				handler.PlatformView.MinHeight = view.MinimumHeight;
+		}
 
 		//public static void MapToolbar(IWindowHandler handler, IWindow view)
 		//{
