@@ -36,7 +36,8 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
 		{
-			handler.PlatformView.Text = timePicker.Time.ToString(@"hh\:mm");
+			var time = timePicker.Time ?? TimeSpan.Zero;
+			handler.PlatformView.Text = $"{time.Hours:D2}:{time.Minutes:D2}";
 		}
 
 		public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker)
