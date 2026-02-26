@@ -10,6 +10,7 @@ using Microsoft.Maui.Controls.Hosting.WPF;
 using Microsoft.Maui.Controls.Internals;
 using Microsoft.Maui.Essentials.WPF;
 using Microsoft.Maui.Hosting;
+using Maui.Controls.WPF.DevFlow;
 
 namespace Maui.Controls.Sample.WPF
 {
@@ -21,6 +22,10 @@ namespace Maui.Controls.Sample.WPF
 				.CreateBuilder()
 				.UseMauiAppWPF<App>()
 				.UseWPFEssentials();
+
+#if DEBUG
+			builder.AddMauiDevFlowAgent();
+#endif
 
 
 			builder.Services.AddMauiBlazorWebView();
