@@ -50,13 +50,14 @@ Implementation status of the .NET MAUI backend for Windows using WPF. Adapted fr
 | Page | Status | Notes |
 |------|--------|-------|
 | ✅ **ContentPage** | Done | Content rendering, Title (updates WPF window title), Background |
-| ❌ **NavigationPage** | Not implemented | No handler — using page-swapping workaround (`Application.Current.Windows[0].Page = ...`) |
-| ❌ **TabbedPage** | Not implemented | |
-| ❌ **FlyoutPage** | Not implemented | |
+| ✅ **NavigationPage** | Done | Stack navigation with back button, title bar, toolbar items via NavigationViewHandler |
+| ✅ **TabbedPage** | Done | WPF TabControl with tab headers and page switching via TabbedViewHandler |
+| ✅ **FlyoutPage** | Done | Grid-based sidebar/detail split with GridSplitter via FlyoutViewHandler |
 | ❌ **Shell** | Not implemented | No flyout, tab bars, or shell navigation |
 
 ### Known Issues
-- ⚠️ Navigation uses page-swapping instead of proper NavigationPage stack — no back button, no animation
+- ⚠️ NavigationPage: No animated page transitions (instant swap)
+- ⚠️ TabbedPage: Selected/unselected tab colors require ControlTemplate customization
 
 ---
 
@@ -139,10 +140,10 @@ Implementation status of the .NET MAUI backend for Windows using WPF. Adapted fr
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| ❌ **NavigationPage stack** | Not implemented | Using page-swapping workaround |
+| ✅ **NavigationPage stack** | Done | Push/pop with back button, title bar via NavigationViewHandler |
 | ❌ **Shell navigation** | Not implemented | |
-| ❌ **Back button** | Not implemented | |
-| ❌ **ToolbarItems** | Not implemented | |
+| ✅ **Back button** | Done | Rendered in NavigationPage toolbar, triggers PopAsync |
+| ✅ **ToolbarItems** | Done | Rendered as buttons in NavigationPage toolbar area |
 | N/A **URL/route-based routing** | N/A | Desktop-specific concept |
 
 ---
@@ -151,9 +152,9 @@ Implementation status of the .NET MAUI backend for Windows using WPF. Adapted fr
 
 | Dialog | Status | Notes |
 |--------|--------|-------|
-| ❌ **DisplayAlert** | Not implemented | Could use `System.Windows.MessageBox` or custom WPF Window |
-| ❌ **DisplayActionSheet** | Not implemented | |
-| ❌ **DisplayPromptAsync** | Not implemented | |
+| ✅ **DisplayAlert** | Done | WPF MessageBox via WPFAlertManagerSubscription (DispatchProxy) |
+| ✅ **DisplayActionSheet** | Done | Custom WPF Window with button list |
+| ✅ **DisplayPromptAsync** | Done | Custom WPF Window with TextBox and Accept/Cancel buttons |
 
 ---
 
@@ -161,11 +162,11 @@ Implementation status of the .NET MAUI backend for Windows using WPF. Adapted fr
 
 | Gesture | Status | Notes |
 |---------|--------|-------|
-| ❌ **TapGestureRecognizer** | Not implemented | Could use WPF `MouseLeftButtonDown` |
+| ✅ **TapGestureRecognizer** | Done | WPF `MouseLeftButtonUp` with NumberOfTapsRequired via GestureManager |
 | ❌ **PanGestureRecognizer** | Not implemented | Could use WPF `MouseMove` + `MouseDown` |
 | ❌ **SwipeGestureRecognizer** | Not implemented | |
 | ❌ **PinchGestureRecognizer** | Not implemented | Could use WPF `ManipulationDelta` for touch |
-| ❌ **PointerGestureRecognizer** | Not implemented | Could use WPF `MouseEnter`/`MouseLeave`/`MouseMove` |
+| ✅ **PointerGestureRecognizer** | Done | WPF `MouseEnter`/`MouseLeave`/`MouseMove` via GestureManager |
 
 ---
 
@@ -361,11 +362,11 @@ Every handler must support these properties mapped from the base `IView`:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| ❌ **PlatformTicker** | Not implemented | Need `WPFTicker` using `DispatcherTimer` for ~60fps animation frames |
-| ❌ **TranslateTo** | Not implemented | Requires ticker + TranslationX/Y mapping |
-| ❌ **FadeTo** | Not implemented | Requires ticker + Opacity mapping (Opacity is mapped) |
-| ❌ **ScaleTo** | Not implemented | Requires ticker + Scale mapping via `RenderTransform` |
-| ❌ **RotateTo** | Not implemented | Requires ticker + Rotation mapping via `RenderTransform` |
+| ✅ **PlatformTicker** | Done | `WPFTicker` using `DispatcherTimer` at render priority for ~60fps |
+| ⚠️ **TranslateTo** | Partial | Ticker done, TranslationX/Y mapping via RenderTransform not yet wired |
+| ⚠️ **FadeTo** | Partial | Ticker + Opacity mapping both done — should work |
+| ⚠️ **ScaleTo** | Partial | Ticker done, Scale mapping via `RenderTransform` not yet wired |
+| ⚠️ **RotateTo** | Partial | Ticker done, Rotation mapping via `RenderTransform` not yet wired |
 | ❌ **LayoutTo** | Not implemented | |
 
 > Note: WPF has excellent native animation support via `Storyboard` and `DoubleAnimation`. A `WPFTicker` using `DispatcherTimer` on the UI thread would enable MAUI's cross-platform animation system.
@@ -386,18 +387,18 @@ Every handler must support these properties mapped from the base `IView`:
 
 | Category | Implemented | Total | Notes |
 |----------|-------------|-------|-------|
-| **Core Infrastructure** | 5 of 7 | 7 | Missing keyboard events, gesture integration |
-| **Pages** | 1 of 5 | 5 | Only ContentPage; NavigationPage, TabbedPage, FlyoutPage, Shell needed |
+| **Core Infrastructure** | 6 of 7 | 7 | Missing keyboard events |
+| **Pages** | 4 of 5 | 5 | ContentPage, NavigationPage, TabbedPage, FlyoutPage; Shell needed |
 | **Layouts** | 8 of 9 | 9 | Missing Frame (could reuse BorderHandler) |
 | **Basic Controls** | 14 of 16 | 16 | Missing ImageButton, RadioButton |
 | **Collection Controls** | 0 of 7 | 7 | Major gap — CollectionView, ListView critical |
 | **Input Controls** | 4 of 4 | 4 | All present; Entry/Editor could be improved |
-| **Gesture Recognizers** | 0 of 5 | 5 | Major gap — Tap essential for interactivity |
+| **Gesture Recognizers** | 2 of 5 | 5 | Tap + Pointer done; Pan, Swipe, Pinch needed |
 | **Shapes** | 3 of 6 | 6 | Missing Path, Polygon, Polyline |
 | **Essentials** | 15 of 26 | 26 | Core services done; sensors/phone N/A |
-| **Alerts & Dialogs** | 0 of 3 | 3 | Critical gap for user interaction |
+| **Alerts & Dialogs** | 3 of 3 | 3 | ✅ All done via WPFAlertManagerSubscription |
 | **Font Services** | 0 of 5 | 5 | Need IFontManager, IFontRegistrar |
-| **Animations** | 0 of 5 | 5 | Need PlatformTicker + Transform mapping |
+| **Animations** | 1 of 5 | 5 | PlatformTicker done; Transform mapping needed |
 | **MenuBar** | 0 of 4 | 4 | WPF has excellent native menu support |
 | **FormattedText** | 8 of 9 | 9 | Missing CharacterSpacing (WPF limitation) |
 | **Base View Properties** | 9 of 22 | 22 | Missing transforms, clip, shadow, automation |
@@ -410,16 +411,16 @@ Every handler must support these properties mapped from the base `IView`:
 ## Priority Implementation Roadmap
 
 ### P0 — Critical (needed for basic apps)
-1. **NavigationPage** — Push/Pop stack, back button, toolbar
-2. **DisplayAlert / DisplayActionSheet** — User feedback
-3. **TapGestureRecognizer** — Button-like tappable areas
+1. ~~**NavigationPage**~~ ✅ — Push/Pop stack, back button, toolbar
+2. ~~**DisplayAlert / DisplayActionSheet**~~ ✅ — User feedback via WPFAlertManagerSubscription
+3. ~~**TapGestureRecognizer**~~ ✅ — Mouse click gestures via GestureManager
 4. **CollectionView / ListView** — Data-driven lists
-5. **PlatformTicker + Animations** — Visual feedback
+5. ~~**PlatformTicker + Animations**~~ ✅ — WPFTicker done; Transform mapping pending
 
 ### P1 — Important (needed for real apps)
 6. **Shell** — Full navigation with flyout, tabs
-7. **TabbedPage / FlyoutPage** — Multi-page navigation patterns
-8. **PointerGestureRecognizer** — Hover effects
+7. ~~**TabbedPage / FlyoutPage**~~ ✅ — TabControl and Grid-based sidebar
+8. ~~**PointerGestureRecognizer**~~ ✅ — Hover effects
 9. **PanGestureRecognizer / SwipeGestureRecognizer** — Touch/swipe interactions
 10. **IFontManager / IFontRegistrar** — Custom font loading
 11. **MenuBar** — Desktop menu integration
