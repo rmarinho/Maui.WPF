@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BaseTargetFramework)-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseMaui>true</UseMaui>
+    <RootNamespace>Microsoft.Maui.Platform.WPF</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.0" />
+    <PackageReference Include="Redth.MauiDevFlow.Agent.Core" Version="*" />
+  </ItemGroup>
+
+</Project>

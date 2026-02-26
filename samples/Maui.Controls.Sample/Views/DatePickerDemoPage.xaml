@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.WPF.Views.DatePickerDemoPage">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="10">
+            <Button Text="← Back" Clicked="OnBackClicked" HorizontalOptions="Start" />
+            <Label Text="DatePicker Demo" FontSize="24" FontAttributes="Bold" />
+            <BoxView HeightRequest="1" Color="Gray" Margin="0,0,0,10" />
+
+            <Label Text="Basic DatePicker:" FontSize="18" />
+            <DatePicker x:Name="BasicDatePicker" DateSelected="OnDateSelected" />
+            <Label x:Name="SelectedDateLabel" Text="No date selected yet" FontSize="16" />
+
+            <Label Text="DatePicker with Min/Max:" FontSize="18" Margin="0,10,0,0" />
+            <DatePicker x:Name="RangeDatePicker"
+                        MinimumDate="01/01/2020"
+                        MaximumDate="12/31/2030"
+                        DateSelected="OnRangeDateSelected" />
+            <Label x:Name="RangeDateLabel" Text="Range: 2020–2030" FontSize="16" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.WPF.Views.ActivityIndicatorDemoPage">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="10">
+            <Button Text="← Back" Clicked="OnBackClicked" HorizontalOptions="Start" />
+            <Label Text="ActivityIndicator Demo" FontSize="24" FontAttributes="Bold" />
+            <BoxView HeightRequest="1" Color="Gray" Margin="0,0,0,10" />
+
+            <Label Text="Running (default):" />
+            <ActivityIndicator IsRunning="True" />
+
+            <Label Text="Not Running:" />
+            <ActivityIndicator IsRunning="False" />
+
+            <Label Text="Red Color:" />
+            <ActivityIndicator IsRunning="True" Color="Red" />
+
+            <Label Text="Blue Color:" />
+            <ActivityIndicator IsRunning="True" Color="Blue" />
+
+            <Label Text="Green Color:" />
+            <ActivityIndicator IsRunning="True" Color="Green" />
+
+            <BoxView HeightRequest="1" Color="Gray" Margin="0,10" />
+            <Label Text="Toggle with Switch:" FontAttributes="Bold" />
+            <HorizontalStackLayout Spacing="10">
+                <Switch x:Name="ToggleSwitch" IsToggled="True" Toggled="OnSwitchToggled" />
+                <Label x:Name="ToggleStatusLabel" Text="Running: True" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <ActivityIndicator x:Name="ToggleableIndicator" IsRunning="True" Color="Purple" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
