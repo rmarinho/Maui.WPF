@@ -1,40 +1,65 @@
+using System;
+using System.Windows;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.WPF;
 using WBorder = System.Windows.Controls.Border;
 
 namespace Microsoft.Maui.Handlers.WPF
 {
 	public partial class BorderHandler : WPFViewHandler<IBorderView, WBorder>
 	{
+		ContentPanel? _contentPanel;
+
 		protected override WBorder CreatePlatformView()
 		{
 			return new WBorder
 			{
 				BorderThickness = new System.Windows.Thickness(1),
 				BorderBrush = System.Windows.Media.Brushes.Gray,
-				Padding = new System.Windows.Thickness(8),
+				Padding = new System.Windows.Thickness(0),
 			};
+		}
+
+		public override void SetVirtualView(IView view)
+		{
+			base.SetVirtualView(view);
+
+			_contentPanel = new ContentPanel
+			{
+				CrossPlatformMeasure = VirtualView.CrossPlatformMeasure,
+				CrossPlatformArrange = VirtualView.CrossPlatformArrange,
+			};
+			PlatformView.Child = _contentPanel;
+		}
+
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
 		}
 
 		public static void MapContent(BorderHandler handler, IBorderView border)
 		{
-			if (handler.MauiContext == null) return;
+			if (handler.MauiContext == null || handler._contentPanel == null) return;
+
+			handler._contentPanel.Children.Clear();
 
 			if (border.PresentedContent is IView view)
 			{
-				handler.PlatformView.Child = (System.Windows.UIElement)view.ToPlatform(handler.MauiContext);
+				handler._contentPanel.Children.Add((UIElement)view.ToPlatform(handler.MauiContext));
 			}
 		}
 
 		public static void MapStroke(BorderHandler handler, IBorderView border)
 		{
-			if (border.Stroke is Microsoft.Maui.Graphics.SolidPaint solidPaint && solidPaint.Color != null)
+			if (border.Stroke is Microsoft.Maui.Graphics.SolidPaint solidPaint)
 			{
-				var c = solidPaint.Color;
-				handler.PlatformView.BorderBrush = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(c.Alpha * 255),
-						(byte)(c.Red * 255),
-						(byte)(c.Green * 255),
-						(byte)(c.Blue * 255)));
+				var brush = ToBrush(solidPaint.Color);
+				if (brush != null)
+					handler.PlatformView.BorderBrush = brush;
 			}
 		}
 
@@ -53,6 +78,22 @@ namespace Microsoft.Maui.Handlers.WPF
 					roundRect.CornerRadius.BottomRight,
 					roundRect.CornerRadius.BottomLeft);
 			}
+		}
+
+		public static void MapBackground(BorderHandler handler, IBorderView border)
+		{
+			if (border.Background is SolidPaint solidPaint)
+			{
+				var brush = ToBrush(solidPaint.Color);
+				if (brush != null)
+					handler.PlatformView.Background = brush;
+			}
+		}
+
+		public static void MapPadding(BorderHandler handler, IBorderView border)
+		{
+			var p = border.Padding;
+			handler.PlatformView.Padding = new System.Windows.Thickness(p.Left, p.Top, p.Right, p.Bottom);
 		}
 	}
 }

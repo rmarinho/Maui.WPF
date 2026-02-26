@@ -8,6 +8,8 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(IBorderView.Stroke)] = MapStroke,
 			[nameof(IBorderView.StrokeThickness)] = MapStrokeThickness,
 			[nameof(IBorderView.Shape)] = MapStrokeShape,
+			[nameof(IView.Background)] = MapBackground,
+			[nameof(IBorderView.Padding)] = MapPadding,
 		};
 
 		public static CommandMapper<IBorderView, BorderHandler> CommandMapper = new(ViewCommandMapper)

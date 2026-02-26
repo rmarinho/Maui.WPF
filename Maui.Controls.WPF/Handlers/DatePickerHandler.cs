@@ -8,6 +8,9 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(IDatePicker.MinimumDate)] = MapMinimumDate,
 			[nameof(IDatePicker.MaximumDate)] = MapMaximumDate,
 			[nameof(IDatePicker.Format)] = MapFormat,
+			[nameof(ITextStyle.TextColor)] = MapTextColor,
+			[nameof(ITextStyle.Font)] = MapFont,
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
 		};
 
 		public static CommandMapper<IDatePicker, DatePickerHandler> CommandMapper = new(ViewCommandMapper)

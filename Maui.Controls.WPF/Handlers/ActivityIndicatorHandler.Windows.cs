@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			return new WProgressBar
 			{
 				IsIndeterminate = true,
-				Height = 4,
+				MinHeight = 20,
 				MinWidth = 100,
 			};
 		}
@@ -24,12 +24,18 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
 		{
-			if (activityIndicator.Color != null)
-				handler.PlatformView.Foreground = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(activityIndicator.Color.Alpha * 255),
-						(byte)(activityIndicator.Color.Red * 255),
-						(byte)(activityIndicator.Color.Green * 255),
-						(byte)(activityIndicator.Color.Blue * 255)));
+			var brush = ToBrush(activityIndicator.Color);
+			if (brush != null)
+				handler.PlatformView.Foreground = brush;
+		}
+
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
 		}
 	}
 }

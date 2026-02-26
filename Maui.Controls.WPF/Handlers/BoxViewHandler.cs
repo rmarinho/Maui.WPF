@@ -4,7 +4,9 @@ namespace Microsoft.Maui.Handlers.WPF
 	{
 		public static IPropertyMapper<IShapeView, BoxViewHandler> Mapper = new PropertyMapper<IShapeView, BoxViewHandler>(ViewHandler.ViewMapper)
 		{
-			[nameof(IShapeView.Fill)] = MapFill,
+			[nameof(IShapeView.Fill)] = MapColor,
+			[nameof(IShapeView.Shape)] = MapCornerRadius,
+			[nameof(IView.Background)] = MapBackground,
 		};
 
 		public static CommandMapper<IShapeView, BoxViewHandler> CommandMapper = new(ViewCommandMapper)

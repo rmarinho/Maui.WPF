@@ -6,7 +6,11 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			[nameof(IPicker.Title)] = MapTitle,
 			[nameof(IPicker.SelectedIndex)] = MapSelectedIndex,
-			[nameof(IPicker.TextColor)] = MapTextColor,
+			[nameof(ITextStyle.TextColor)] = MapTextColor,
+			[nameof(ITextStyle.Font)] = MapFont,
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+			[nameof(IView.Background)] = MapBackground,
+			[nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
 			[nameof(IItemDelegate<string>.GetCount)] = MapItems,
 		};
 

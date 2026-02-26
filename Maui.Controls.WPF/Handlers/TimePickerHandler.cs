@@ -7,6 +7,8 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(ITimePicker.Time)] = MapTime,
 			[nameof(ITimePicker.Format)] = MapFormat,
 			[nameof(ITextStyle.TextColor)] = MapTextColor,
+			[nameof(ITextStyle.Font)] = MapFont,
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
 		};
 
 		public static CommandMapper<ITimePicker, TimePickerHandler> CommandMapper = new(ViewCommandMapper)

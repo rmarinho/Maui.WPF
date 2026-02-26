@@ -35,15 +35,17 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapForeground(CheckBoxHandler handler, ICheckBox checkBox)
 		{
-			if (checkBox.Foreground is Microsoft.Maui.Graphics.SolidPaint solidPaint && solidPaint.Color != null)
-			{
-				var color = solidPaint.Color;
-				handler.PlatformView.Foreground = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(color.Alpha * 255),
-						(byte)(color.Red * 255),
-						(byte)(color.Green * 255),
-						(byte)(color.Blue * 255)));
-			}
+			if (checkBox.Foreground is Microsoft.Maui.Graphics.SolidPaint sp && sp.Color != null)
+				handler.PlatformView.Foreground = ToBrush(sp.Color);
+		}
+
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
 		}
 	}
 }

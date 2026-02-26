@@ -64,6 +64,15 @@ namespace Microsoft.Maui.Handlers.WPF
 			VirtualView?.SearchButtonPressed();
 		}
 
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
+		}
+
 		public static void MapText(SearchBarHandler handler, ISearchBar searchBar)
 		{
 			if (handler._textBox.Text != searchBar.Text)
@@ -72,20 +81,69 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapPlaceholder(SearchBarHandler handler, ISearchBar searchBar)
 		{
+			// WPF TextBox doesn't have a native placeholder property.
 		}
 
 		public static void MapTextColor(SearchBarHandler handler, ISearchBar searchBar)
 		{
-			if (searchBar.TextColor != null)
-				handler._textBox.Foreground = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(searchBar.TextColor.Alpha * 255),
-						(byte)(searchBar.TextColor.Red * 255),
-						(byte)(searchBar.TextColor.Green * 255),
-						(byte)(searchBar.TextColor.Blue * 255)));
+			var brush = ToBrush(searchBar.TextColor);
+			if (brush != null)
+				handler._textBox.Foreground = brush;
+		}
+
+		public static void MapPlaceholderColor(SearchBarHandler handler, ISearchBar searchBar)
+		{
+			// WPF TextBox doesn't have a native placeholder property.
+		}
+
+		public static void MapFont(SearchBarHandler handler, ISearchBar searchBar)
+		{
+			var font = searchBar.Font;
+
+			if (font.Size > 0)
+				handler._textBox.FontSize = font.Size;
+
+			handler._textBox.FontWeight = font.Weight >= Microsoft.Maui.FontWeight.Bold
+				? System.Windows.FontWeights.Bold
+				: System.Windows.FontWeights.Normal;
+
+			handler._textBox.FontStyle =
+				(font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+					? System.Windows.FontStyles.Italic
+					: System.Windows.FontStyles.Normal;
+
+			if (!string.IsNullOrEmpty(font.Family))
+				handler._textBox.FontFamily = new System.Windows.Media.FontFamily(font.Family);
 		}
 
 		public static void MapCancelButtonColor(SearchBarHandler handler, ISearchBar searchBar)
 		{
+			// WPF search bar does not have a dedicated cancel button.
+		}
+
+		public static void MapIsTextPredictionEnabled(SearchBarHandler handler, ISearchBar searchBar)
+		{
+			handler._textBox.AutoWordSelection = searchBar.IsTextPredictionEnabled;
+		}
+
+		public static void MapMaxLength(SearchBarHandler handler, ISearchBar searchBar)
+		{
+			handler._textBox.MaxLength = searchBar.MaxLength;
+		}
+
+		public static void MapCharacterSpacing(SearchBarHandler handler, ISearchBar searchBar)
+		{
+			// WPF TextBox doesn't have a direct CharacterSpacing property.
+		}
+
+		public static void MapHorizontalTextAlignment(SearchBarHandler handler, ISearchBar searchBar)
+		{
+			handler._textBox.TextAlignment = searchBar.HorizontalTextAlignment switch
+			{
+				Microsoft.Maui.TextAlignment.Center => System.Windows.TextAlignment.Center,
+				Microsoft.Maui.TextAlignment.End => System.Windows.TextAlignment.Right,
+				_ => System.Windows.TextAlignment.Left,
+			};
 		}
 	}
 }

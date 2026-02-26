@@ -6,18 +6,17 @@ namespace Microsoft.Maui.Handlers.WPF
 	{
 		public static IPropertyMapper<ILabel, LabelHandler> Mapper = new PropertyMapper<ILabel, LabelHandler>(ViewHandler.ViewMapper)
 		{
-			//[nameof(ILabel.Background)] = MapBackground,
-			//[nameof(ILabel.Height)] = MapHeight,
-			//[nameof(ILabel.Opacity)] = MapOpacity,
-			//[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
-			//[nameof(ITextStyle.Font)] = MapFont,
-			//[nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
-			//[nameof(ITextAlignment.VerticalTextAlignment)] = MapVerticalTextAlignment,
-			//[nameof(ILabel.LineHeight)] = MapLineHeight,
-			//[nameof(ILabel.Padding)] = MapPadding,
 			[nameof(ILabel.Text)] = MapText,
-			//[nameof(ITextStyle.TextColor)] = MapTextColor,
-			//[nameof(ILabel.TextDecorations)] = MapTextDecorations,
+			[nameof(ITextStyle.TextColor)] = MapTextColor,
+			[nameof(ITextStyle.Font)] = MapFont,
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+			[nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
+			[nameof(ITextAlignment.VerticalTextAlignment)] = MapVerticalTextAlignment,
+			[nameof(ILabel.TextDecorations)] = MapTextDecorations,
+			[nameof(ILabel.Padding)] = MapPadding,
+			[nameof(ILabel.LineHeight)] = MapLineHeight,
+			["MaxLines"] = MapMaxLines,
+			["FormattedText"] = MapFormattedText,
 		};
 
 		public static CommandMapper<ILabel, ILabelHandler> CommandMapper = new(ViewCommandMapper)

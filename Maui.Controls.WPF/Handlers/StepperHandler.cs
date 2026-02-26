@@ -7,6 +7,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(IStepper.Value)] = MapValue,
 			[nameof(IStepper.Minimum)] = MapMinimum,
 			[nameof(IStepper.Maximum)] = MapMaximum,
+			[nameof(IStepper.Interval)] = MapIncrement,
 		};
 
 		public static CommandMapper<IStepper, StepperHandler> CommandMapper = new(ViewCommandMapper)

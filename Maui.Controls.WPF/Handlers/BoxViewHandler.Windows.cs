@@ -1,5 +1,3 @@
-using System.Windows.Controls;
-using System.Windows.Media;
 using WBorder = System.Windows.Controls.Border;
 
 namespace Microsoft.Maui.Handlers.WPF
@@ -10,22 +8,48 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			return new WBorder
 			{
-				MinWidth = 40,
-				MinHeight = 40,
-				Background = Brushes.Transparent,
+				Background = System.Windows.Media.Brushes.Transparent,
 			};
 		}
 
-		public static void MapFill(BoxViewHandler handler, IShapeView view)
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
 		{
-			if (view.Fill is Microsoft.Maui.Graphics.SolidPaint solidPaint && solidPaint.Color != null)
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
+		}
+
+		public static void MapColor(BoxViewHandler handler, IShapeView view)
+		{
+			if (view.Fill is Microsoft.Maui.Graphics.SolidPaint solidPaint)
 			{
-				var c = solidPaint.Color;
-				handler.PlatformView.Background = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(c.Alpha * 255),
-						(byte)(c.Red * 255),
-						(byte)(c.Green * 255),
-						(byte)(c.Blue * 255)));
+				var brush = ToBrush(solidPaint.Color);
+				if (brush != null)
+					handler.PlatformView.Background = brush;
+			}
+		}
+
+		public static void MapCornerRadius(BoxViewHandler handler, IShapeView view)
+		{
+			if (view.Shape is Microsoft.Maui.Controls.Shapes.RoundRectangle roundRect)
+			{
+				handler.PlatformView.CornerRadius = new System.Windows.CornerRadius(
+					roundRect.CornerRadius.TopLeft,
+					roundRect.CornerRadius.TopRight,
+					roundRect.CornerRadius.BottomRight,
+					roundRect.CornerRadius.BottomLeft);
+			}
+		}
+
+		public static void MapBackground(BoxViewHandler handler, IShapeView view)
+		{
+			if (view.Background is SolidPaint solidPaint)
+			{
+				var brush = ToBrush(solidPaint.Color);
+				if (brush != null)
+					handler.PlatformView.Background = brush;
 			}
 		}
 	}

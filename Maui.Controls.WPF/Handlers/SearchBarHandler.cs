@@ -7,7 +7,13 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(ISearchBar.Text)] = MapText,
 			[nameof(ISearchBar.Placeholder)] = MapPlaceholder,
 			[nameof(ITextStyle.TextColor)] = MapTextColor,
+			[nameof(ISearchBar.PlaceholderColor)] = MapPlaceholderColor,
+			[nameof(ITextStyle.Font)] = MapFont,
 			[nameof(ISearchBar.CancelButtonColor)] = MapCancelButtonColor,
+			[nameof(ISearchBar.IsTextPredictionEnabled)] = MapIsTextPredictionEnabled,
+			[nameof(ISearchBar.MaxLength)] = MapMaxLength,
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+			[nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
 		};
 
 		public static CommandMapper<ISearchBar, SearchBarHandler> CommandMapper = new(ViewCommandMapper)

@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			{
 				Minimum = 0,
 				Maximum = 1,
-				Height = 4,
+				MinHeight = 16,
 				MinWidth = 100,
 			};
 		}
@@ -23,12 +23,18 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapProgressColor(ProgressBarHandler handler, IProgress progress)
 		{
-			if (progress.ProgressColor != null)
-				handler.PlatformView.Foreground = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(progress.ProgressColor.Alpha * 255),
-						(byte)(progress.ProgressColor.Red * 255),
-						(byte)(progress.ProgressColor.Green * 255),
-						(byte)(progress.ProgressColor.Blue * 255)));
+			var brush = ToBrush(progress.ProgressColor);
+			if (brush != null)
+				handler.PlatformView.Foreground = brush;
+		}
+
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
 		}
 	}
 }

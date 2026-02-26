@@ -16,8 +16,6 @@ namespace Microsoft.Maui.Platform.WPF
 
 		public LayoutPanel()
 		{
-			Height = 1000;
-			Width = 1000;
 		}
 
 

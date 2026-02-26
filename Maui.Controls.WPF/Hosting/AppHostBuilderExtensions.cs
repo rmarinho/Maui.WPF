@@ -129,8 +129,107 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 		internal static MauiAppBuilder RemapForControls(this MauiAppBuilder builder)
 		{
-			// Update the mappings for IView/View to work specifically for Controls
+			// Override base ViewMapper entries that target WinUI types
+			// so they work with WPF FrameworkElement instead
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Width), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					double w = view.Width;
+					if (w >= 0)
+						fe.Width = w;
+					// Don't set NaN — preserve default from CreatePlatformView
+				}
+			});
 
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Height), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					double h = view.Height;
+					if (h >= 0)
+						fe.Height = h;
+					// Don't set NaN — preserve default from CreatePlatformView
+				}
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MinimumWidth), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MinimumWidth) && view.MinimumWidth >= 0)
+					fe.MinWidth = view.MinimumWidth;
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MinimumHeight), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MinimumHeight) && view.MinimumHeight >= 0)
+					fe.MinHeight = view.MinimumHeight;
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MaximumWidth), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MaximumWidth) && !double.IsInfinity(view.MaximumWidth))
+					fe.MaxWidth = view.MaximumWidth;
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MaximumHeight), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MaximumHeight) && !double.IsInfinity(view.MaximumHeight))
+					fe.MaxHeight = view.MaximumHeight;
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Opacity), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+					ue.Opacity = view.Opacity;
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Visibility), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+				{
+					ue.Visibility = view.Visibility switch
+					{
+						Visibility.Collapsed => System.Windows.Visibility.Collapsed,
+						Visibility.Hidden => System.Windows.Visibility.Hidden,
+						_ => System.Windows.Visibility.Visible,
+					};
+				}
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.IsEnabled), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+					ue.IsEnabled = view.IsEnabled;
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Background), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.Controls.Control control && view.Background is SolidPaint sp && sp.Color != null)
+				{
+					var c = sp.Color;
+					control.Background = new System.Windows.Media.SolidColorBrush(
+						System.Windows.Media.Color.FromArgb(
+							(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+							(byte)(c.Green * 255), (byte)(c.Blue * 255)));
+				}
+				else if (handler.PlatformView is System.Windows.Controls.Panel panel && view.Background is SolidPaint sp2 && sp2.Color != null)
+				{
+					var c = sp2.Color;
+					panel.Background = new System.Windows.Media.SolidColorBrush(
+						System.Windows.Media.Color.FromArgb(
+							(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+							(byte)(c.Green * 255), (byte)(c.Blue * 255)));
+				}
+			});
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Margin), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					var m = view.Margin;
+					fe.Margin = new System.Windows.Thickness(m.Left, m.Top, m.Right, m.Bottom);
+				}
+			});
 
 			return builder;
 		}

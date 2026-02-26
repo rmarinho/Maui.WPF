@@ -1,4 +1,5 @@
 using System;
+using System.Windows;
 using System.Windows.Media;
 using WTextBox = System.Windows.Controls.TextBox;
 
@@ -34,6 +35,15 @@ namespace Microsoft.Maui.Handlers.WPF
 				VirtualView.Time = time;
 		}
 
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
+		}
+
 		public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
 		{
 			var time = timePicker.Time ?? TimeSpan.Zero;
@@ -42,16 +52,40 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker)
 		{
+			// WPF TextBox doesn't support time format directly; re-render time display.
+			MapTime(handler, timePicker);
 		}
 
 		public static void MapTextColor(TimePickerHandler handler, ITimePicker timePicker)
 		{
-			if (timePicker.TextColor != null)
-				handler.PlatformView.Foreground = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(timePicker.TextColor.Alpha * 255),
-						(byte)(timePicker.TextColor.Red * 255),
-						(byte)(timePicker.TextColor.Green * 255),
-						(byte)(timePicker.TextColor.Blue * 255)));
+			var brush = ToBrush(timePicker.TextColor);
+			if (brush != null)
+				handler.PlatformView.Foreground = brush;
+		}
+
+		public static void MapFont(TimePickerHandler handler, ITimePicker timePicker)
+		{
+			var font = timePicker.Font;
+
+			if (font.Size > 0)
+				handler.PlatformView.FontSize = font.Size;
+
+			handler.PlatformView.FontWeight = font.Weight >= FontWeight.Bold
+				? System.Windows.FontWeights.Bold
+				: System.Windows.FontWeights.Normal;
+
+			handler.PlatformView.FontStyle =
+				(font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+					? FontStyles.Italic
+					: FontStyles.Normal;
+
+			if (!string.IsNullOrEmpty(font.Family))
+				handler.PlatformView.FontFamily = new FontFamily(font.Family);
+		}
+
+		public static void MapCharacterSpacing(TimePickerHandler handler, ITimePicker timePicker)
+		{
+			// WPF TextBox doesn't have a direct CharacterSpacing property.
 		}
 	}
 }

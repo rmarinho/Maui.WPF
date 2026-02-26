@@ -40,10 +40,22 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapTrackColor(SwitchHandler handler, ISwitch @switch)
 		{
+			if (@switch.TrackColor != null)
+				handler.PlatformView.Background = ToBrush(@switch.TrackColor);
 		}
 
 		public static void MapThumbColor(SwitchHandler handler, ISwitch @switch)
 		{
+			// WPF CheckBox does not expose a native thumb element
+		}
+
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
 		}
 	}
 }

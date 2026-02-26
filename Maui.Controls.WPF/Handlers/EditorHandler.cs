@@ -6,9 +6,14 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			[nameof(IEditor.Text)] = MapText,
 			[nameof(IEditor.Placeholder)] = MapPlaceholder,
+			[nameof(IEditor.PlaceholderColor)] = MapPlaceholderColor,
 			[nameof(ITextStyle.TextColor)] = MapTextColor,
 			[nameof(ITextStyle.Font)] = MapFont,
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
 			[nameof(IEditor.IsReadOnly)] = MapIsReadOnly,
+			[nameof(IEditor.MaxLength)] = MapMaxLength,
+			[nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
+			[nameof(IEditor.IsTextPredictionEnabled)] = MapIsTextPredictionEnabled,
 		};
 
 		public static CommandMapper<IEditor, EditorHandler> CommandMapper = new(ViewCommandMapper)

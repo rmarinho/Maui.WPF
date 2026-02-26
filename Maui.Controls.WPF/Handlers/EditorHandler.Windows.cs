@@ -36,6 +36,15 @@ namespace Microsoft.Maui.Handlers.WPF
 			VirtualView.Text = PlatformView.Text;
 		}
 
+		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
+		{
+			if (color == null) return null;
+			return new System.Windows.Media.SolidColorBrush(
+				System.Windows.Media.Color.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255)));
+		}
+
 		public static void MapText(EditorHandler handler, IEditor editor)
 		{
 			if (handler.PlatformView.Text != editor.Text)
@@ -44,27 +53,74 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapPlaceholder(EditorHandler handler, IEditor editor)
 		{
+			// WPF TextBox doesn't have native placeholder support
+		}
+
+		public static void MapPlaceholderColor(EditorHandler handler, IEditor editor)
+		{
+			// WPF TextBox doesn't have native placeholder support
 		}
 
 		public static void MapTextColor(EditorHandler handler, IEditor editor)
 		{
-			if (editor.TextColor != null)
-				handler.PlatformView.Foreground = new System.Windows.Media.SolidColorBrush(
-					System.Windows.Media.Color.FromArgb((byte)(editor.TextColor.Alpha * 255),
-						(byte)(editor.TextColor.Red * 255),
-						(byte)(editor.TextColor.Green * 255),
-						(byte)(editor.TextColor.Blue * 255)));
+			var brush = ToBrush(editor.TextColor);
+			if (brush != null)
+				handler.PlatformView.Foreground = brush;
 		}
 
 		public static void MapFont(EditorHandler handler, IEditor editor)
 		{
-			if (editor is ITextStyle textStyle && textStyle.Font.Size > 0)
-				handler.PlatformView.FontSize = textStyle.Font.Size;
+			if (editor is ITextStyle textStyle)
+			{
+				var font = textStyle.Font;
+
+				if (font.Size > 0)
+					handler.PlatformView.FontSize = font.Size;
+
+				handler.PlatformView.FontWeight = (int)font.Weight switch
+				{
+					>= 700 => System.Windows.FontWeights.Bold,
+					>= 600 => System.Windows.FontWeights.SemiBold,
+					_ => System.Windows.FontWeights.Normal
+				};
+
+				handler.PlatformView.FontStyle = (font.Slant != FontSlant.Default)
+					? System.Windows.FontStyles.Italic
+					: System.Windows.FontStyles.Normal;
+
+				if (!string.IsNullOrEmpty(font.Family))
+					handler.PlatformView.FontFamily = new FontFamily(font.Family);
+			}
 		}
 
 		public static void MapIsReadOnly(EditorHandler handler, IEditor editor)
 		{
 			handler.PlatformView.IsReadOnly = editor.IsReadOnly;
+		}
+
+		public static void MapMaxLength(EditorHandler handler, IEditor editor)
+		{
+			handler.PlatformView.MaxLength = editor.MaxLength;
+		}
+
+		public static void MapCharacterSpacing(EditorHandler handler, IEditor editor)
+		{
+			// WPF TextBox does not natively support character spacing
+		}
+
+		public static void MapHorizontalTextAlignment(EditorHandler handler, IEditor editor)
+		{
+			handler.PlatformView.TextAlignment = editor.HorizontalTextAlignment switch
+			{
+				Microsoft.Maui.TextAlignment.Center => System.Windows.TextAlignment.Center,
+				Microsoft.Maui.TextAlignment.End => System.Windows.TextAlignment.Right,
+				_ => System.Windows.TextAlignment.Left
+			};
+		}
+
+		public static void MapIsTextPredictionEnabled(EditorHandler handler, IEditor editor)
+		{
+			// WPF TextBox does not have a text prediction toggle
 		}
 	}
 }
