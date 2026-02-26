@@ -185,8 +185,28 @@
 
             <!-- Footer -->
             <BoxView HeightRequest="1" Color="LightGray" Margin="0,8" />
+            <Label Text="── Navigate to Demo Pages ──" FontSize="18" FontAttributes="Bold" TextColor="#1a73e8"
+                   HorizontalTextAlignment="Center" />
+            <Button Text="Label Demo →" Clicked="OnLabelDemoClicked" Margin="0,2" />
+            <Button Text="Button Demo →" Clicked="OnButtonDemoClicked" Margin="0,2" />
+            <Button Text="Entry Demo →" Clicked="OnEntryDemoClicked" Margin="0,2" />
+            <Button Text="Editor Demo →" Clicked="OnEditorDemoClicked" Margin="0,2" />
+            <Button Text="CheckBox Demo →" Clicked="OnCheckBoxDemoClicked" Margin="0,2" />
+            <Button Text="Switch Demo →" Clicked="OnSwitchDemoClicked" Margin="0,2" />
+            <Button Text="Slider Demo →" Clicked="OnSliderDemoClicked" Margin="0,2" />
+            <Button Text="ProgressBar Demo →" Clicked="OnProgressBarDemoClicked" Margin="0,2" />
+            <Button Text="ActivityIndicator Demo →" Clicked="OnActivityIndicatorDemoClicked" Margin="0,2" />
+            <Button Text="DatePicker Demo →" Clicked="OnDatePickerDemoClicked" Margin="0,2" />
+            <Button Text="TimePicker Demo →" Clicked="OnTimePickerDemoClicked" Margin="0,2" />
+            <Button Text="Picker Demo →" Clicked="OnPickerDemoClicked" Margin="0,2" />
+            <Button Text="Stepper Demo →" Clicked="OnStepperDemoClicked" Margin="0,2" />
+            <Button Text="SearchBar Demo →" Clicked="OnSearchBarDemoClicked" Margin="0,2" />
+            <Button Text="Border Demo →" Clicked="OnBorderDemoClicked" Margin="0,2" />
+            <Button Text="BoxView Demo →" Clicked="OnBoxViewDemoClicked" Margin="0,2" />
+            <Button Text="ScrollView Demo →" Clicked="OnScrollViewDemoClicked" Margin="0,2" />
+            <Button Text="Shapes Demo →" Clicked="OnShapesDemoClicked" Margin="0,2" />
             <Label Text="End of Gallery" FontSize="12" TextColor="Gray"
-                   HorizontalTextAlignment="Center" Margin="0,0,0,20" />
+                   HorizontalTextAlignment="Center" Margin="0,10,0,20" />
 
         </VerticalStackLayout>
     </ScrollView>
