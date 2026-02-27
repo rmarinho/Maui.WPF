@@ -50,7 +50,10 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapCharacterSpacing(LabelHandler handler, ILabel label)
 		{
-			// WPF TextBlock does not have a direct CharacterSpacing property.
+			// WPF doesn't have a direct CharacterSpacing property on TextBlock.
+			// Character spacing is only available through OpenType typography features
+			// which depends on font support. Best effort: no-op for unsupported fonts.
+			// MAUI WinUI uses TextElement.CharacterSpacing which is a WinUI-specific API.
 		}
 
 		public static void MapHorizontalTextAlignment(LabelHandler handler, ILabel label)
@@ -153,6 +156,8 @@ namespace Microsoft.Maui.Handlers.WPF
 
 				if (!string.IsNullOrEmpty(mauiSpan.FontFamily))
 					run.FontFamily = new System.Windows.Media.FontFamily(mauiSpan.FontFamily);
+
+				// CharacterSpacing: WPF doesn't support per-run character spacing natively
 
 				if (mauiSpan.TextDecorations.HasFlag(TextDecorations.Underline))
 					run.TextDecorations = System.Windows.TextDecorations.Underline;

@@ -14,4 +14,9 @@
     <PackageReference Include="Redth.MauiDevFlow.Agent.Core" Version="*" />
   </ItemGroup>
 
+  <!-- Include MSBuild targets for MAUI asset processing -->
+  <ItemGroup>
+    <None Include="build\Platform.Maui.WPF.targets" Pack="true" PackagePath="build\" />
+  </ItemGroup>
+
 </Project>

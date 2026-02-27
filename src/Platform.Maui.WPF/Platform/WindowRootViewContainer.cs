@@ -18,14 +18,13 @@ namespace Microsoft.Maui.Platform.WPF
 			var window = Window.GetWindow(this);
 
 			if (double.IsInfinity(width))
-				width = window.ActualWidth;
+				width = window?.ActualWidth ?? 800;
 
 			if (double.IsInfinity(height))
-				height = window.ActualHeight;
+				height = window?.ActualHeight ?? 600;
 
 			var size = new Size(width, height);
 
-			// measure the children to fit the container exactly
 			foreach (var child in Children)
 			{
 				if (child is UIElement fe)

@@ -55,13 +55,40 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<SearchBar, SearchBarHandler>();
 			handlersCollection.AddHandler<TimePicker, TimePickerHandler>();
 			handlersCollection.AddHandler<Border, BorderHandler>();
+			handlersCollection.AddHandler<Frame, BorderHandler>();
 			handlersCollection.AddHandler<ContentView, ContentViewHandler>();
-			handlersCollection.AddHandler<BoxView, ShapeViewHandler>();
+			handlersCollection.AddHandler<BoxView, Microsoft.Maui.Handlers.WPF.BoxViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.RoundRectangle, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Ellipse, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Line, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Path, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Polygon, ShapeViewHandler>();
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Polyline, ShapeViewHandler>();
 			handlersCollection.AddHandler<AspNetCore.Components.WebView.Maui.BlazorWebView, AspNetCore.Components.WebView.Maui.WPF.BlazorWebViewHandler>();
+
+			// Navigation handlers
+			handlersCollection.AddHandler<NavigationPage, NavigationViewHandler>();
+			handlersCollection.AddHandler<TabbedPage, TabbedViewHandler>();
+			handlersCollection.AddHandler<FlyoutPage, FlyoutViewHandler>();
+			handlersCollection.AddHandler<Shell, ShellHandler>();
+
+			// Collection handlers
+			handlersCollection.AddHandler<CollectionView, Microsoft.Maui.Handlers.WPF.CollectionViewHandler>();
+			handlersCollection.AddHandler<ListView, ListViewHandler>();
+			handlersCollection.AddHandler<CarouselView, Microsoft.Maui.Handlers.WPF.CarouselViewHandler>();
+			handlersCollection.AddHandler<IndicatorView, IndicatorViewHandler>();
+			handlersCollection.AddHandler<TableView, TableViewHandler>();
+			handlersCollection.AddHandler<SwipeView, SwipeViewHandler>();
+			handlersCollection.AddHandler<RefreshView, RefreshViewHandler>();
+
+			// Additional control handlers
+			handlersCollection.AddHandler<RadioButton, RadioButtonHandler>();
+			handlersCollection.AddHandler<ImageButton, ImageButtonHandler>();
+
+			// WebView + GraphicsView
+			handlersCollection.AddHandler<Microsoft.Maui.Controls.WebView, WebViewHandler>();
+			handlersCollection.AddHandler<GraphicsView, GraphicsViewHandler>();
 
 			return handlersCollection;
 		}
@@ -92,6 +119,23 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 				return Dispatcher.GetForCurrentThread()!;
 			});
 
+			// Register WPF-specific animation ticker (runs on dispatcher thread)
+			builder.Services.AddSingleton<Microsoft.Maui.Animations.Ticker>(new Microsoft.Maui.Platform.WPF.WPFTicker());
+
+			// Register alert/prompt/action sheet handler
+			Microsoft.Maui.Platform.WPF.WPFAlertManagerSubscription.Register(builder.Services);
+
+			// Initialize theme detection
+			Microsoft.Maui.Platform.WPF.ThemeManager.Initialize();
+
+			// Register font services
+			builder.Services.AddSingleton<IFontRegistrar, Microsoft.Maui.Platform.WPF.WPFFontRegistrar>();
+			builder.Services.AddSingleton<IEmbeddedFontLoader, Microsoft.Maui.Platform.WPF.WPFEmbeddedFontLoader>();
+			builder.Services.AddSingleton<IFontManager, Microsoft.Maui.Platform.WPF.WPFFontManager>();
+
+			// Register FontNamedSizeService
+			DependencyService.Register<Microsoft.Maui.Platform.WPF.WPFFontNamedSizeService>();
+
 			builder.ConfigureImageSourceHandlers();
 			builder
 				.ConfigureMauiHandlers(handlers =>
@@ -99,7 +143,11 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 					handlers.AddMauiControlsHandlers();
 				});
 
-			//builder.Services.TryAddEnumerable(ServiceDescriptor.Transient<IMauiInitializeService, MauiControlsInitializer>());
+			// Register EffectsFactory (internal type required for page effects)
+			var effectsFactoryType = typeof(Microsoft.Maui.Controls.Effect).Assembly
+				.GetType("Microsoft.Maui.Controls.Hosting.EffectsFactory");
+			if (effectsFactoryType != null)
+				builder.Services.TryAddSingleton(effectsFactoryType);
 
 			builder.RemapForControls();
 
@@ -204,21 +252,13 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Background), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.Controls.Control control && view.Background is SolidPaint sp && sp.Color != null)
+				var brush = ConvertPaintToBrush(view.Background);
+				if (brush != null)
 				{
-					var c = sp.Color;
-					control.Background = new System.Windows.Media.SolidColorBrush(
-						System.Windows.Media.Color.FromArgb(
-							(byte)(c.Alpha * 255), (byte)(c.Red * 255),
-							(byte)(c.Green * 255), (byte)(c.Blue * 255)));
-				}
-				else if (handler.PlatformView is System.Windows.Controls.Panel panel && view.Background is SolidPaint sp2 && sp2.Color != null)
-				{
-					var c = sp2.Color;
-					panel.Background = new System.Windows.Media.SolidColorBrush(
-						System.Windows.Media.Color.FromArgb(
-							(byte)(c.Alpha * 255), (byte)(c.Red * 255),
-							(byte)(c.Green * 255), (byte)(c.Blue * 255)));
+					if (handler.PlatformView is System.Windows.Controls.Control control)
+						control.Background = brush;
+					else if (handler.PlatformView is System.Windows.Controls.Panel panel)
+						panel.Background = brush;
 				}
 			});
 
@@ -231,7 +271,295 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 				}
 			});
 
+			// Transforms — TranslationX/Y, Rotation, Scale, Anchor
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.TranslationX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.TranslationY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Rotation), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.RotationX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.RotationY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Scale), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ScaleX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ScaleY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AnchorX), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AnchorY), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+					UpdateTransformGroup(fe, view);
+			});
+
+			// Shadow → DropShadowEffect
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Shadow), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+				{
+					var shadow = view.Shadow;
+					if (shadow != null && shadow.Paint is SolidPaint sp && sp.Color != null)
+					{
+						var c = sp.Color;
+						ue.Effect = new System.Windows.Media.Effects.DropShadowEffect
+						{
+							Color = System.Windows.Media.Color.FromArgb(
+								(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+								(byte)(c.Green * 255), (byte)(c.Blue * 255)),
+							BlurRadius = Math.Abs(shadow.Radius),
+							ShadowDepth = Math.Sqrt(shadow.Offset.X * shadow.Offset.X + shadow.Offset.Y * shadow.Offset.Y),
+							Direction = Math.Atan2(-shadow.Offset.Y, shadow.Offset.X) * 180.0 / Math.PI,
+							Opacity = shadow.Opacity
+						};
+					}
+					else
+					{
+						ue.Effect = null;
+					}
+				}
+			});
+
+			// Clip → UIElement.Clip
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Clip), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+				{
+					var clipShape = view.Clip;
+					if (clipShape != null)
+					{
+						try
+						{
+							var w = view.Frame.Width > 0 ? view.Frame.Width : 100;
+							var h = view.Frame.Height > 0 ? view.Frame.Height : 100;
+							var path = clipShape.PathForBounds(new Graphics.Rect(0, 0, w, h));
+							if (path != null)
+							{
+								var pathStr = path.ToDefinitionString();
+								if (!string.IsNullOrEmpty(pathStr))
+									ue.Clip = System.Windows.Media.Geometry.Parse(pathStr);
+							}
+						}
+						catch { }
+					}
+					else
+					{
+						ue.Clip = null;
+					}
+				}
+			});
+
+			// InputTransparent → IsHitTestVisible
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.InputTransparent), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+					ue.IsHitTestVisible = !view.InputTransparent;
+			});
+
+			// FlowDirection
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.FlowDirection), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					fe.FlowDirection = view.FlowDirection == Microsoft.Maui.FlowDirection.RightToLeft
+						? System.Windows.FlowDirection.RightToLeft
+						: System.Windows.FlowDirection.LeftToRight;
+				}
+			});
+
+			// AutomationId
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AutomationId), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue && !string.IsNullOrEmpty(view.AutomationId))
+					System.Windows.Automation.AutomationProperties.SetAutomationId(ue, view.AutomationId);
+			});
+
+			// Semantics → Accessibility
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Semantics), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue && view.Semantics != null)
+				{
+					if (!string.IsNullOrEmpty(view.Semantics.Description))
+						System.Windows.Automation.AutomationProperties.SetName(ue, view.Semantics.Description);
+					if (!string.IsNullOrEmpty(view.Semantics.Hint))
+						System.Windows.Automation.AutomationProperties.SetHelpText(ue, view.Semantics.Hint);
+				}
+			});
+
+			// ToolTip
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("ToolTip", (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					object? tip = null;
+					try
+					{
+						tip = ToolTipProperties.GetText(view as BindableObject);
+					}
+					catch { }
+					if (tip is string s && !string.IsNullOrEmpty(s))
+						fe.ToolTip = s;
+					else
+						fe.ToolTip = null;
+				}
+			});
+
+			// ZIndex → Panel.ZIndex
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ZIndex), (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.UIElement ue)
+					System.Windows.Controls.Panel.SetZIndex(ue, view.ZIndex);
+			});
+
+			// ContextFlyout → ContextMenu
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("ContextFlyout", (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe && view is BindableObject bo)
+				{
+					try
+					{
+						var flyout = FlyoutBase.GetContextFlyout(bo);
+						if (flyout is MenuFlyout menuFlyout)
+						{
+							var contextMenu = new System.Windows.Controls.ContextMenu();
+							foreach (var item in menuFlyout)
+							{
+								if (item is MenuFlyoutItem mfi)
+								{
+									var mi = new System.Windows.Controls.MenuItem { Header = mfi.Text };
+									mi.Click += (s, e) =>
+									{
+										mfi.Command?.Execute(mfi.CommandParameter);
+									};
+									contextMenu.Items.Add(mi);
+								}
+								else if (item is MenuFlyoutSeparator)
+								{
+									contextMenu.Items.Add(new System.Windows.Controls.Separator());
+								}
+							}
+							fe.ContextMenu = contextMenu;
+						}
+					}
+					catch { }
+				}
+			});
+
+			// Wire gesture recognizers to WPF mouse events
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("GestureRecognizers", (handler, view, _) =>
+			{
+				if (handler.PlatformView is System.Windows.FrameworkElement fe)
+				{
+					Microsoft.Maui.Platform.WPF.GestureManager.SetupGestures(fe, view);
+					// Hook VisualStateManager for hover/pressed/focused states
+					Microsoft.Maui.Platform.WPF.VisualStateManagerHooks.AttachVisualStateHooks(fe, view);
+				}
+			});
+
 			return builder;
 		}
+
+		static void UpdateTransformGroup(System.Windows.FrameworkElement fe, IView view)
+		{
+			var group = fe.RenderTransform as System.Windows.Media.TransformGroup;
+			if (group == null)
+			{
+				group = new System.Windows.Media.TransformGroup();
+				group.Children.Add(new System.Windows.Media.ScaleTransform());
+				group.Children.Add(new System.Windows.Media.RotateTransform());
+				group.Children.Add(new System.Windows.Media.TranslateTransform());
+				fe.RenderTransform = group;
+			}
+
+			if (group.Children[0] is System.Windows.Media.ScaleTransform scale)
+			{
+				scale.ScaleX = view.Scale * view.ScaleX;
+				scale.ScaleY = view.Scale * view.ScaleY;
+			}
+			if (group.Children[1] is System.Windows.Media.RotateTransform rotate)
+			{
+				rotate.Angle = view.Rotation;
+			}
+			if (group.Children[2] is System.Windows.Media.TranslateTransform translate)
+			{
+				translate.X = view.TranslationX;
+				translate.Y = view.TranslationY;
+			}
+
+			fe.RenderTransformOrigin = new System.Windows.Point(view.AnchorX, view.AnchorY);
+		}
+
+		static System.Windows.Media.Color ToWpfColor(Microsoft.Maui.Graphics.Color c) =>
+			System.Windows.Media.Color.FromArgb(
+				(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+				(byte)(c.Green * 255), (byte)(c.Blue * 255));
+
+		static System.Windows.Media.Brush? ConvertPaintToBrush(Paint? paint)
+		{
+			if (paint == null) return null;
+
+			if (paint is SolidPaint sp && sp.Color != null)
+				return new System.Windows.Media.SolidColorBrush(ToWpfColor(sp.Color));
+
+			if (paint is LinearGradientPaint lgp && lgp.GradientStops != null)
+			{
+				var wpfBrush = new System.Windows.Media.LinearGradientBrush();
+				wpfBrush.StartPoint = new System.Windows.Point(lgp.StartPoint.X, lgp.StartPoint.Y);
+				wpfBrush.EndPoint = new System.Windows.Point(lgp.EndPoint.X, lgp.EndPoint.Y);
+				foreach (var stop in lgp.GradientStops)
+				{
+					if (stop.Color != null)
+						wpfBrush.GradientStops.Add(new System.Windows.Media.GradientStop(ToWpfColor(stop.Color), stop.Offset));
+				}
+				return wpfBrush;
+			}
+
+			if (paint is RadialGradientPaint rgp && rgp.GradientStops != null)
+			{
+				var wpfBrush = new System.Windows.Media.RadialGradientBrush();
+				wpfBrush.Center = new System.Windows.Point(rgp.Center.X, rgp.Center.Y);
+				wpfBrush.RadiusX = rgp.Radius;
+				wpfBrush.RadiusY = rgp.Radius;
+				foreach (var stop in rgp.GradientStops)
+				{
+					if (stop.Color != null)
+						wpfBrush.GradientStops.Add(new System.Windows.Media.GradientStop(ToWpfColor(stop.Color), stop.Offset));
+				}
+				return wpfBrush;
+			}
+
+			return null;
+		}
+
 	}
 }
