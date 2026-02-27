@@ -9,6 +9,36 @@ namespace Microsoft.Maui.Handlers.WPF
 			return new WBorder();
 		}
 
+		public override Microsoft.Maui.Graphics.Size GetDesiredSize(double widthConstraint, double heightConstraint)
+		{
+			var ve = VirtualView as Microsoft.Maui.Controls.VisualElement;
+			if (ve != null)
+			{
+				var wr = ve.WidthRequest;
+				var hr = ve.HeightRequest;
+				if (wr > 0 && hr > 0)
+				{
+					// Ensure WPF element is measured so Arrange will work
+					(PlatformView as System.Windows.UIElement)?.Measure(new System.Windows.Size(wr, hr));
+					return new Microsoft.Maui.Graphics.Size(wr, hr);
+				}
+			}
+			return base.GetDesiredSize(widthConstraint, heightConstraint);
+		}
+
+		public override void PlatformArrange(Microsoft.Maui.Graphics.Rect rect)
+		{
+			// FlexLayout may arrange shapes with 0 size; use WidthRequest/HeightRequest as fallback
+			if ((rect.Width <= 0 || rect.Height <= 0) && VirtualView is Microsoft.Maui.Controls.VisualElement ve)
+			{
+				var w = ve.WidthRequest > 0 ? ve.WidthRequest : rect.Width;
+				var h = ve.HeightRequest > 0 ? ve.HeightRequest : rect.Height;
+				if (w > 0 && h > 0)
+					rect = new Microsoft.Maui.Graphics.Rect(rect.X, rect.Y, w, h);
+			}
+			base.PlatformArrange(rect);
+		}
+
 		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
 		{
 			if (color == null) return null;
@@ -29,13 +59,29 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (shapeView is Microsoft.Maui.Controls.Shapes.Ellipse)
 			{
-				handler.PlatformView.CornerRadius = new System.Windows.CornerRadius(9999);
+				var wpfEllipse = new System.Windows.Shapes.Ellipse();
+				wpfEllipse.Fill = ToPaintBrush(shapeView.Fill);
+				wpfEllipse.Stroke = ToPaintBrush(shapeView.Stroke);
+				wpfEllipse.StrokeThickness = shapeView.StrokeThickness;
+				handler.PlatformView.Child = wpfEllipse;
+			}
+			else if (shapeView is Microsoft.Maui.Controls.Shapes.Rectangle)
+			{
+				var wpfRect = new System.Windows.Shapes.Rectangle();
+				wpfRect.Fill = ToPaintBrush(shapeView.Fill);
+				wpfRect.Stroke = ToPaintBrush(shapeView.Stroke);
+				wpfRect.StrokeThickness = shapeView.StrokeThickness;
+				handler.PlatformView.Child = wpfRect;
 			}
 			else if (shapeView is Microsoft.Maui.Controls.Shapes.RoundRectangle rr)
 			{
-				handler.PlatformView.CornerRadius = new System.Windows.CornerRadius(
-					rr.CornerRadius.TopLeft, rr.CornerRadius.TopRight,
-					rr.CornerRadius.BottomRight, rr.CornerRadius.BottomLeft);
+				var wpfRect = new System.Windows.Shapes.Rectangle();
+				wpfRect.Fill = ToPaintBrush(shapeView.Fill);
+				wpfRect.Stroke = ToPaintBrush(shapeView.Stroke);
+				wpfRect.StrokeThickness = shapeView.StrokeThickness;
+				wpfRect.RadiusX = rr.CornerRadius.TopLeft;
+				wpfRect.RadiusY = rr.CornerRadius.TopLeft;
+				handler.PlatformView.Child = wpfRect;
 			}
 			else if (shapeView is Microsoft.Maui.Controls.Shapes.Line line)
 			{
@@ -103,10 +149,11 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (shapeView is Microsoft.Maui.Controls.Shapes.Line)
 				return;
-			// For Path/Polygon/Polyline, fill is handled in MapShape
-			if (shapeView is Microsoft.Maui.Controls.Shapes.Path or Microsoft.Maui.Controls.Shapes.Polygon or Microsoft.Maui.Controls.Shapes.Polyline)
+
+			// For shapes that use WPF Shape children, update the child's fill
+			if (handler.PlatformView.Child is System.Windows.Shapes.Shape wpfShape)
 			{
-				MapShape(handler, shapeView);
+				wpfShape.Fill = ToPaintBrush(shapeView.Fill);
 				return;
 			}
 
@@ -118,10 +165,9 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapStroke(ShapeViewHandler handler, IShapeView shapeView)
 		{
-			if (shapeView is Microsoft.Maui.Controls.Shapes.Line or Microsoft.Maui.Controls.Shapes.Path
-				or Microsoft.Maui.Controls.Shapes.Polygon or Microsoft.Maui.Controls.Shapes.Polyline)
+			if (handler.PlatformView.Child is System.Windows.Shapes.Shape wpfShape)
 			{
-				MapShape(handler, shapeView);
+				wpfShape.Stroke = ToPaintBrush(shapeView.Stroke);
 				return;
 			}
 
@@ -133,10 +179,9 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapStrokeThickness(ShapeViewHandler handler, IShapeView shapeView)
 		{
-			if (shapeView is Microsoft.Maui.Controls.Shapes.Line or Microsoft.Maui.Controls.Shapes.Path
-				or Microsoft.Maui.Controls.Shapes.Polygon or Microsoft.Maui.Controls.Shapes.Polyline)
+			if (handler.PlatformView.Child is System.Windows.Shapes.Shape wpfShape)
 			{
-				MapShape(handler, shapeView);
+				wpfShape.StrokeThickness = shapeView.StrokeThickness;
 				return;
 			}
 

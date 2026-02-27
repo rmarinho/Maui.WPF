@@ -57,7 +57,7 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			handlersCollection.AddHandler<Border, BorderHandler>();
 			handlersCollection.AddHandler<Frame, BorderHandler>();
 			handlersCollection.AddHandler<ContentView, ContentViewHandler>();
-			handlersCollection.AddHandler<BoxView, ShapeViewHandler>();
+			handlersCollection.AddHandler<BoxView, Microsoft.Maui.Handlers.WPF.BoxViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.RoundRectangle, ShapeViewHandler>();
 			handlersCollection.AddHandler<Microsoft.Maui.Controls.Shapes.Ellipse, ShapeViewHandler>();

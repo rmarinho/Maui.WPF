@@ -34,6 +34,14 @@ namespace Microsoft.Maui.Platform.WPF
 
 			var crossPlatformSize = CrossPlatformMeasure(width, height);
 
+			// WPF requires all children to be measured during MeasureOverride.
+			// MAUI's CrossPlatformMeasure may not call WPF Measure on all children
+			// (e.g., views with explicit WidthRequest/HeightRequest).
+			foreach (System.Windows.UIElement child in InternalChildren)
+			{
+				child.Measure(availableSize);
+			}
+
 			width = crossPlatformSize.Width;
 			height = crossPlatformSize.Height;
 
