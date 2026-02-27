@@ -56,6 +56,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (platformView.Content is null)
 				platformView.Content = new WindowRootViewContainer();
 
+
 			// Set up modal navigation overlay host
 			Microsoft.Maui.Platform.WPF.ModalNavigationManager.EnsureOverlayHost(platformView);
 
@@ -95,19 +96,29 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			_ = handler.MauiContext ?? throw new InvalidOperationException($"{nameof(MauiContext)} should have been set by base class.");
 
-			//var previousRootView = windowManager.RootView;
-
-
-			if (handler.PlatformView.Content is WindowRootViewContainer container)
+			var container = FindRootViewContainer(handler.PlatformView);
+			if (container != null)
 			{
-				//if (previousRootView != null && previousRootView != windowManager.RootView)
-				//	container.RemovePage(previousRootView);
-
 				container.AddPage((FrameworkElement)handler.VirtualView.Content.ToPlatform(handler.MauiContext));
 			}
+		}
 
-			//if (window.VisualDiagnosticsOverlay != null)
-			//	window.VisualDiagnosticsOverlay.Initialize();
+		static WindowRootViewContainer? FindRootViewContainer(System.Windows.Window window)
+		{
+			if (window.Content is WindowRootViewContainer direct)
+				return direct;
+
+			// ModalNavigationManager may have wrapped it in a Grid
+			if (window.Content is System.Windows.Controls.Panel panel)
+			{
+				foreach (var child in panel.Children)
+				{
+					if (child is WindowRootViewContainer rvc)
+						return rvc;
+				}
+			}
+
+			return null;
 		}
 
 		public static void MapX(WindowHandler handler, IWindow view)
