@@ -41,6 +41,8 @@ namespace Microsoft.Maui.Handlers.WPF
 				BorderThickness = new System.Windows.Thickness(0),
 				Background = System.Windows.Media.Brushes.Transparent,
 			};
+			ScrollViewer.SetVerticalScrollBarVisibility(_listBox, System.Windows.Controls.ScrollBarVisibility.Auto);
+			ScrollViewer.SetHorizontalScrollBarVisibility(_listBox, System.Windows.Controls.ScrollBarVisibility.Disabled);
 
 			_listBox.SelectionChanged += OnSelectionChanged;
 

@@ -291,12 +291,10 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		void OnShellNavigating(object? sender, ShellNavigatingEventArgs e)
 		{
-			// Nothing needed here yet, but we track this for debugging
 		}
 
 		void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
 		{
-			// Delay slightly to let MAUI finish updating CurrentPage
 			PlatformView?.Dispatcher.InvokeAsync(() => ShowCurrentPage(), 
 				System.Windows.Threading.DispatcherPriority.Background);
 		}
@@ -319,7 +317,6 @@ namespace Microsoft.Maui.Handlers.WPF
 				Microsoft.Maui.Controls.Page? currentPage = VirtualView.CurrentPage;
 				var section = VirtualView.CurrentItem?.CurrentItem;
 
-				// If CurrentPage is null, walk Shell hierarchy to find the page
 				if (currentPage == null)
 				{
 					// Check navigation stack first (for pushed pages via GoToAsync)
