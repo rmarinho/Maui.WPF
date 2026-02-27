@@ -143,7 +143,11 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 					handlers.AddMauiControlsHandlers();
 				});
 
-			//builder.Services.TryAddEnumerable(ServiceDescriptor.Transient<IMauiInitializeService, MauiControlsInitializer>());
+			// Register EffectsFactory (internal type required for page effects)
+			var effectsFactoryType = typeof(Microsoft.Maui.Controls.Effect).Assembly
+				.GetType("Microsoft.Maui.Controls.Hosting.EffectsFactory");
+			if (effectsFactoryType != null)
+				builder.Services.TryAddSingleton(effectsFactoryType);
 
 			builder.RemapForControls();
 

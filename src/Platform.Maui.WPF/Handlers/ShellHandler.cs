@@ -8,113 +8,134 @@ using System.Windows.Media;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
-using WButton = System.Windows.Controls.Button;
-using WGrid = System.Windows.Controls.Grid;
-using WBorder = System.Windows.Controls.Border;
-using WBrush = System.Windows.Media.Brush;
+using WButton = global::System.Windows.Controls.Button;
+using WGrid = global::System.Windows.Controls.Grid;
+using WBorder = global::System.Windows.Controls.Border;
+using WBrush = global::System.Windows.Media.Brush;
+using WColumnDefinition = global::System.Windows.Controls.ColumnDefinition;
+using WRowDefinition = global::System.Windows.Controls.RowDefinition;
+using WVisibility = global::System.Windows.Visibility;
+using WThickness = global::System.Windows.Thickness;
+using WHorizontalAlignment = global::System.Windows.HorizontalAlignment;
+using WVerticalAlignment = global::System.Windows.VerticalAlignment;
+using WSolidColorBrush = global::System.Windows.Media.SolidColorBrush;
+using WColor = global::System.Windows.Media.Color;
+using WGridLength = global::System.Windows.GridLength;
+using WGridUnitType = global::System.Windows.GridUnitType;
+using WFontWeights = global::System.Windows.FontWeights;
 
 namespace Microsoft.Maui.Handlers.WPF
 {
 	/// <summary>
-	/// Shell handler — provides flyout navigation, tabs, and URI-based routing.
-	/// Maps MAUI Shell → WPF Grid with optional flyout panel + TabControl + content area.
+	/// Shell container — provides flyout navigation, toolbar with back button, and content area.
 	/// </summary>
 	public class ShellContainerView : WGrid
 	{
 		readonly WGrid _flyoutPanel;
-		readonly StackPanel _flyoutItems;
-		readonly ContentControl _contentArea;
-		readonly TabControl _tabControl;
+		readonly global::System.Windows.Controls.StackPanel _flyoutItems;
+		readonly global::System.Windows.Controls.ContentControl _contentArea;
+		readonly global::System.Windows.Controls.TabControl _tabControl;
 		readonly WButton _hamburgerButton;
+		readonly WButton _backButton;
+		readonly global::System.Windows.Controls.TextBlock _titleLabel;
 		readonly WBorder _flyoutOverlay;
+		readonly global::System.Windows.Controls.DockPanel _toolbar;
 		bool _flyoutOpen;
 
 		public Action<ShellItem>? OnShellItemSelected { get; set; }
-		public Action? OnFlyoutToggled { get; set; }
+		public Action? OnBackButtonClicked { get; set; }
 
 		public ShellContainerView()
 		{
-			// Two columns: flyout (auto/hidden) + main content
-			ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = System.Windows.GridLength.Auto });
-			ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+			ColumnDefinitions.Add(new WColumnDefinition { Width = WGridLength.Auto });
+			ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(1, WGridUnitType.Star) });
 
 			// Flyout panel
 			_flyoutPanel = new WGrid
 			{
 				Width = 250,
-				Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(45, 45, 48)),
-				Visibility = System.Windows.Visibility.Collapsed,
+				Background = new WSolidColorBrush(WColor.FromRgb(45, 45, 48)),
+				Visibility = WVisibility.Collapsed,
 			};
-			_flyoutPanel.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(50) });
-			_flyoutPanel.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(50) });
+			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) });
 
-			// Flyout header area
-			var headerPanel = new DockPanel { Margin = new System.Windows.Thickness(12, 8, 8, 8) };
-			var closeBtn = new WButton { Content = "✕", Width = 30, Height = 30, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
+			var headerPanel = new global::System.Windows.Controls.DockPanel { Margin = new WThickness(12, 8, 8, 8) };
+			var closeBtn = new WButton { Content = "✕", Width = 30, Height = 30, HorizontalAlignment = WHorizontalAlignment.Right };
 			closeBtn.Click += (s, e) => ToggleFlyout(false);
-			DockPanel.SetDock(closeBtn, Dock.Right);
+			global::System.Windows.Controls.DockPanel.SetDock(closeBtn, global::System.Windows.Controls.Dock.Right);
 			headerPanel.Children.Add(closeBtn);
-			headerPanel.Children.Add(new TextBlock { Text = "Menu", FontSize = 16, Foreground = System.Windows.Media.Brushes.White, VerticalAlignment = System.Windows.VerticalAlignment.Center });
+			headerPanel.Children.Add(new global::System.Windows.Controls.TextBlock { Text = "Menu", FontSize = 16, Foreground = global::System.Windows.Media.Brushes.White, VerticalAlignment = WVerticalAlignment.Center });
 			SetRow(headerPanel, 0);
 			_flyoutPanel.Children.Add(headerPanel);
 
-			// Flyout items list
-			var scrollViewer = new ScrollViewer { VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto };
-			_flyoutItems = new StackPanel();
+			var scrollViewer = new global::System.Windows.Controls.ScrollViewer { VerticalScrollBarVisibility = global::System.Windows.Controls.ScrollBarVisibility.Auto };
+			_flyoutItems = new global::System.Windows.Controls.StackPanel();
 			scrollViewer.Content = _flyoutItems;
 			SetRow(scrollViewer, 1);
 			_flyoutPanel.Children.Add(scrollViewer);
 			SetColumn(_flyoutPanel, 0);
 
-			// Semi-transparent overlay
 			_flyoutOverlay = new WBorder
 			{
-				Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(80, 0, 0, 0)),
-				Visibility = System.Windows.Visibility.Collapsed,
+				Background = new WSolidColorBrush(WColor.FromArgb(80, 0, 0, 0)),
+				Visibility = WVisibility.Collapsed,
 			};
 			_flyoutOverlay.MouseLeftButtonDown += (s, e) => ToggleFlyout(false);
 
 			// Main content grid
 			var mainGrid = new WGrid();
-			mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(44) });
-			mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
-			mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+			mainGrid.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(44) });
+			mainGrid.RowDefinitions.Add(new WRowDefinition { Height = WGridLength.Auto });
+			mainGrid.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) });
 
-			// Toolbar with hamburger
-			var toolbar = new DockPanel
+			// Toolbar
+			_toolbar = new global::System.Windows.Controls.DockPanel
 			{
 				Height = 44,
-				Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(240, 240, 240)),
+				Background = new WSolidColorBrush(WColor.FromRgb(240, 240, 240)),
 			};
+
 			_hamburgerButton = new WButton
 			{
-				Content = "☰",
-				FontSize = 18,
-				Width = 44,
-				Height = 44,
-				Visibility = System.Windows.Visibility.Collapsed,
+				Content = "☰", FontSize = 18, Width = 44, Height = 44,
+				Visibility = WVisibility.Collapsed,
 			};
 			_hamburgerButton.Click += (s, e) => ToggleFlyout(!_flyoutOpen);
-			DockPanel.SetDock(_hamburgerButton, Dock.Left);
-			toolbar.Children.Add(_hamburgerButton);
-			toolbar.Children.Add(new TextBlock()); // spacer
-			SetRow(toolbar, 0);
-			mainGrid.Children.Add(toolbar);
+			global::System.Windows.Controls.DockPanel.SetDock(_hamburgerButton, global::System.Windows.Controls.Dock.Left);
+			_toolbar.Children.Add(_hamburgerButton);
 
-			// Tab control
-			_tabControl = new TabControl
+			_backButton = new WButton
 			{
-				Visibility = System.Windows.Visibility.Collapsed,
+				Content = "← Back", Margin = new WThickness(4, 4, 4, 4),
+				Padding = new WThickness(8, 2, 8, 2),
+				VerticalAlignment = WVerticalAlignment.Center,
+				Visibility = WVisibility.Collapsed,
 			};
+			_backButton.Click += (s, e) => OnBackButtonClicked?.Invoke();
+			global::System.Windows.Controls.DockPanel.SetDock(_backButton, global::System.Windows.Controls.Dock.Left);
+			_toolbar.Children.Add(_backButton);
+
+			_titleLabel = new global::System.Windows.Controls.TextBlock
+			{
+				FontSize = 16, FontWeight = WFontWeights.SemiBold,
+				VerticalAlignment = WVerticalAlignment.Center,
+				Margin = new WThickness(8, 0, 0, 0),
+			};
+			_toolbar.Children.Add(_titleLabel);
+
+			SetRow(_toolbar, 0);
+			mainGrid.Children.Add(_toolbar);
+
+			_tabControl = new global::System.Windows.Controls.TabControl { Visibility = WVisibility.Collapsed };
 			_tabControl.SelectionChanged += TabControl_SelectionChanged;
 			SetRow(_tabControl, 1);
 			mainGrid.Children.Add(_tabControl);
 
-			// Content area
-			_contentArea = new ContentControl
+			_contentArea = new global::System.Windows.Controls.ContentControl
 			{
-				HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch,
-				VerticalContentAlignment = System.Windows.VerticalAlignment.Stretch,
+				HorizontalContentAlignment = WHorizontalAlignment.Stretch,
+				VerticalContentAlignment = WVerticalAlignment.Stretch,
 			};
 			SetRow(_contentArea, 2);
 			mainGrid.Children.Add(_contentArea);
@@ -124,25 +145,13 @@ namespace Microsoft.Maui.Handlers.WPF
 			Children.Add(mainGrid);
 		}
 
-		void TabControl_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-		{
-			// TabItem.Tag contains the ShellSection
-			if (_tabControl.SelectedItem is TabItem tabItem && tabItem.Tag is ShellSection section)
-			{
-				var page = section.CurrentItem?.ContentTemplate?.CreateContent() as Microsoft.Maui.Controls.Page;
-				if (page == null && section.CurrentItem is ShellContent content)
-				{
-					page = content.ContentTemplate?.CreateContent() as Microsoft.Maui.Controls.Page;
-				}
-			}
-		}
+		void TabControl_SelectionChanged(object sender, global::System.Windows.Controls.SelectionChangedEventArgs e) { }
 
 		public void ToggleFlyout(bool open)
 		{
 			_flyoutOpen = open;
-			_flyoutPanel.Visibility = open ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-			_flyoutOverlay.Visibility = open ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-			OnFlyoutToggled?.Invoke();
+			_flyoutPanel.Visibility = open ? WVisibility.Visible : WVisibility.Collapsed;
+			_flyoutOverlay.Visibility = open ? WVisibility.Visible : WVisibility.Collapsed;
 		}
 
 		public void SetFlyoutBehavior(FlyoutBehavior behavior)
@@ -150,26 +159,25 @@ namespace Microsoft.Maui.Handlers.WPF
 			switch (behavior)
 			{
 				case FlyoutBehavior.Disabled:
-					_hamburgerButton.Visibility = System.Windows.Visibility.Collapsed;
-					_flyoutPanel.Visibility = System.Windows.Visibility.Collapsed;
+					_hamburgerButton.Visibility = WVisibility.Collapsed;
+					_flyoutPanel.Visibility = WVisibility.Collapsed;
 					break;
 				case FlyoutBehavior.Flyout:
-					_hamburgerButton.Visibility = System.Windows.Visibility.Visible;
+					_hamburgerButton.Visibility = WVisibility.Visible;
 					break;
 				case FlyoutBehavior.Locked:
-					_hamburgerButton.Visibility = System.Windows.Visibility.Collapsed;
-					_flyoutPanel.Visibility = System.Windows.Visibility.Visible;
+					_hamburgerButton.Visibility = WVisibility.Collapsed;
+					_flyoutPanel.Visibility = WVisibility.Visible;
 					break;
 			}
 		}
 
 		public void SetFlyoutBackground(WBrush? brush)
 		{
-			if (brush != null)
-				_flyoutPanel.Background = brush;
+			if (brush != null) _flyoutPanel.Background = brush;
 		}
 
-		public void BuildShellItems(Shell shell, IMauiContext mauiContext)
+		public void BuildFlyoutItems(Shell shell)
 		{
 			_flyoutItems.Children.Clear();
 			_tabControl.Items.Clear();
@@ -179,40 +187,34 @@ namespace Microsoft.Maui.Handlers.WPF
 
 			foreach (var item in shell.Items)
 			{
-				// Add to flyout
 				if (item.FlyoutItemIsVisible)
 				{
 					hasFlyoutItems = true;
+					var capturedItem = item;
 					var btn = new WButton
 					{
 						Content = item.Title ?? item.Route ?? "Item",
-						HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left,
-						Foreground = System.Windows.Media.Brushes.White,
-						Background = System.Windows.Media.Brushes.Transparent,
-						BorderThickness = new System.Windows.Thickness(0),
-						Padding = new System.Windows.Thickness(16, 12, 16, 12),
-						FontSize = 14,
-						Tag = item,
+						HorizontalContentAlignment = WHorizontalAlignment.Left,
+						Foreground = global::System.Windows.Media.Brushes.White,
+						Background = global::System.Windows.Media.Brushes.Transparent,
+						BorderThickness = new WThickness(0),
+						Padding = new WThickness(16, 12, 16, 12),
+						FontSize = 14, Tag = item,
 					};
 					btn.Click += (s, e) =>
 					{
-						OnShellItemSelected?.Invoke(item);
+						OnShellItemSelected?.Invoke(capturedItem);
 						ToggleFlyout(false);
 					};
 					_flyoutItems.Children.Add(btn);
 				}
 
-				// If this item has sections, create tabs
 				if (item.Items.Count > 1)
 				{
 					hasTabs = true;
 					foreach (var section in item.Items)
 					{
-						var tabItem = new TabItem
-						{
-							Header = section.Title ?? section.Route ?? "Tab",
-							Tag = section,
-						};
+						var tabItem = new global::System.Windows.Controls.TabItem { Header = section.Title ?? section.Route ?? "Tab", Tag = section };
 						_tabControl.Items.Add(tabItem);
 					}
 				}
@@ -223,39 +225,17 @@ namespace Microsoft.Maui.Handlers.WPF
 			else
 				SetFlyoutBehavior(FlyoutBehavior.Disabled);
 
-			_tabControl.Visibility = hasTabs ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-
-			// Show first item's content
-			var firstItem = shell.Items.FirstOrDefault();
-			if (firstItem != null)
-				ShowShellItem(firstItem, mauiContext);
+			_tabControl.Visibility = hasTabs ? WVisibility.Visible : WVisibility.Collapsed;
 		}
 
-		public void ShowShellItem(ShellItem item, IMauiContext mauiContext)
-		{
-			try
-			{
-				var section = item.Items.FirstOrDefault();
-				var content = section?.Items.FirstOrDefault();
-				if (content != null)
-				{
-					var page = content.ContentTemplate?.CreateContent() as Microsoft.Maui.Controls.Page
-						?? content.Content as Microsoft.Maui.Controls.Page;
-
-					if (page != null)
-					{
-						var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)page, mauiContext);
-						_contentArea.Content = platformView;
-					}
-				}
-			}
-			catch { }
-		}
-
-		public void SetContent(FrameworkElement? content)
+		public void ShowPage(FrameworkElement? content, string? title, bool showBack)
 		{
 			_contentArea.Content = content;
+			_titleLabel.Text = title ?? string.Empty;
+			_backButton.Visibility = showBack ? WVisibility.Visible : WVisibility.Collapsed;
 		}
+
+		public void SetContent(FrameworkElement? content) => _contentArea.Content = content;
 	}
 
 	public partial class ShellHandler : WPFViewHandler<Shell, ShellContainerView>
@@ -270,9 +250,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			};
 
 		public static CommandMapper<Shell, ShellHandler> CommandMapper =
-			new(ViewCommandMapper)
-			{
-			};
+			new(ViewCommandMapper) { };
 
 		public ShellHandler() : base(Mapper, CommandMapper) { }
 
@@ -280,33 +258,131 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			var container = new ShellContainerView();
 			container.OnShellItemSelected = OnShellItemSelected;
+			container.OnBackButtonClicked = OnBackButtonClicked;
 			return container;
 		}
 
 		protected override void ConnectHandler(ShellContainerView platformView)
 		{
 			base.ConnectHandler(platformView);
-			if (VirtualView != null && MauiContext != null)
-				platformView.BuildShellItems(VirtualView, MauiContext);
+			if (VirtualView != null)
+			{
+				VirtualView.Navigated += OnShellNavigated;
+				VirtualView.Navigating += OnShellNavigating;
+				VirtualView.PropertyChanged += OnShellPropertyChanged;
+				if (MauiContext != null)
+				{
+					platformView.BuildFlyoutItems(VirtualView);
+					ShowCurrentPage();
+				}
+			}
+		}
+
+		protected override void DisconnectHandler(ShellContainerView platformView)
+		{
+			if (VirtualView != null)
+			{
+				VirtualView.Navigated -= OnShellNavigated;
+				VirtualView.Navigating -= OnShellNavigating;
+				VirtualView.PropertyChanged -= OnShellPropertyChanged;
+			}
+			base.DisconnectHandler(platformView);
+		}
+
+		void OnShellNavigating(object? sender, ShellNavigatingEventArgs e)
+		{
+			// Nothing needed here yet, but we track this for debugging
+		}
+
+		void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
+		{
+			// Delay slightly to let MAUI finish updating CurrentPage
+			PlatformView?.Dispatcher.InvokeAsync(() => ShowCurrentPage(), 
+				System.Windows.Threading.DispatcherPriority.Background);
+		}
+
+		void OnShellPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == "CurrentPage" || e.PropertyName == "CurrentItem")
+			{
+				PlatformView?.Dispatcher.InvokeAsync(() => ShowCurrentPage(),
+					System.Windows.Threading.DispatcherPriority.Background);
+			}
+		}
+
+		void ShowCurrentPage()
+		{
+			if (VirtualView == null || MauiContext == null) return;
+
+			try
+			{
+				Microsoft.Maui.Controls.Page? currentPage = VirtualView.CurrentPage;
+				var section = VirtualView.CurrentItem?.CurrentItem;
+
+				// If CurrentPage is null, walk Shell hierarchy to find the page
+				if (currentPage == null)
+				{
+					// Check navigation stack first (for pushed pages via GoToAsync)
+					if (section?.Stack?.Count > 1)
+						currentPage = section.Stack[section.Stack.Count - 1];
+
+					// Fall back to ShellContent template
+					if (currentPage == null)
+					{
+						var content = section?.CurrentItem;
+						if (content != null)
+						{
+							try { currentPage = ((IShellContentController)content).Page; }
+							catch { }
+
+							if (currentPage == null)
+							{
+								currentPage = content.ContentTemplate?.CreateContent() as Microsoft.Maui.Controls.Page
+									?? content.Content as Microsoft.Maui.Controls.Page;
+							}
+						}
+					}
+				}
+
+				if (currentPage == null) return;
+
+				var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)currentPage, MauiContext);
+				var title = currentPage.Title ?? VirtualView.CurrentItem?.Title ?? string.Empty;
+				bool hasNavStack = section?.Stack?.Count > 1;
+
+				PlatformView.ShowPage(platformView as FrameworkElement, title, hasNavStack);
+			}
+			catch { }
 		}
 
 		void OnShellItemSelected(ShellItem item)
 		{
-			if (VirtualView != null)
-				VirtualView.CurrentItem = item;
+			if (VirtualView == null) return;
+			VirtualView.CurrentItem = item;
+		}
+
+		async void OnBackButtonClicked()
+		{
+			if (VirtualView == null) return;
+
+			try
+			{
+				await VirtualView.GoToAsync("..");
+				// GoToAsync may not fire Navigated, so refresh manually
+				ShowCurrentPage();
+			}
+			catch { }
 		}
 
 		static void MapFlyoutBehavior(ShellHandler handler, Shell shell)
-		{
-			handler.PlatformView.SetFlyoutBehavior(shell.FlyoutBehavior);
-		}
+			=> handler.PlatformView.SetFlyoutBehavior(shell.FlyoutBehavior);
 
 		static void MapFlyoutBackground(ShellHandler handler, Shell shell)
 		{
 			if (shell.FlyoutBackgroundColor != null)
 			{
 				var c = shell.FlyoutBackgroundColor;
-				handler.PlatformView.SetFlyoutBackground(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(
+				handler.PlatformView.SetFlyoutBackground(new WSolidColorBrush(WColor.FromArgb(
 					(byte)(c.Alpha * 255), (byte)(c.Red * 255),
 					(byte)(c.Green * 255), (byte)(c.Blue * 255))));
 			}
@@ -314,16 +390,11 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		static void MapItems(ShellHandler handler, Shell shell)
 		{
-			if (handler.MauiContext != null)
-				handler.PlatformView.BuildShellItems(shell, handler.MauiContext);
+			handler.PlatformView.BuildFlyoutItems(shell);
+			handler.ShowCurrentPage();
 		}
 
 		static void MapCurrentItem(ShellHandler handler, Shell shell)
-		{
-			if (shell.CurrentItem != null && handler.MauiContext != null)
-				handler.PlatformView.ShowShellItem(shell.CurrentItem, handler.MauiContext);
-		}
+			=> handler.ShowCurrentPage();
 	}
 }
-
-

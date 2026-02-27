@@ -97,8 +97,7 @@ namespace Microsoft.Maui.Platform.WPF
 			{
 				if (e.ClickCount >= tap.NumberOfTapsRequired)
 				{
-					tap.Command?.Execute(tap.CommandParameter);
-
+					// Use SendTapped which handles Command execution + Tapped event
 					var sendTapped = typeof(TapGestureRecognizer).GetMethod(
 						"SendTapped", BindingFlags.Instance | BindingFlags.NonPublic);
 					if (sendTapped != null)
@@ -109,6 +108,11 @@ namespace Microsoft.Maui.Platform.WPF
 							sendTapped.Invoke(tap, new object?[] { parent });
 						else if (parameters.Length == 2)
 							sendTapped.Invoke(tap, new object?[] { parent, null });
+					}
+					else
+					{
+						// Fallback: execute command directly
+						tap.Command?.Execute(tap.CommandParameter);
 					}
 				}
 			};

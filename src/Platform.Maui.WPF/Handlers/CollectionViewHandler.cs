@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Handlers.WPF
 {
 	public partial class CollectionViewHandler : WPFViewHandler<Microsoft.Maui.Controls.CollectionView, FrameworkElement>
 	{
-		WListBox? _listBox;
+		MauiCollectionListBox? _listBox;
 		WGrid? _rootGrid;
 		TextBlock? _emptyView;
 
@@ -35,14 +35,13 @@ namespace Microsoft.Maui.Handlers.WPF
 		protected override FrameworkElement CreatePlatformView()
 		{
 			_rootGrid = new WGrid();
-			_listBox = new WListBox
+			_listBox = new MauiCollectionListBox
 			{
 				HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch,
 				BorderThickness = new System.Windows.Thickness(0),
 				Background = System.Windows.Media.Brushes.Transparent,
 			};
 
-			// Support horizontal layout via ItemsPanel
 			_listBox.SelectionChanged += OnSelectionChanged;
 
 			_emptyView = new TextBlock
@@ -65,6 +64,13 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (VirtualView == null || _listBox == null) return;
 
+			// When MAUI SelectionMode is None, prevent WPF selection
+			if (VirtualView.SelectionMode == Microsoft.Maui.Controls.SelectionMode.None)
+			{
+				_listBox.UnselectAll();
+				return;
+			}
+
 			if (VirtualView.SelectionMode == Microsoft.Maui.Controls.SelectionMode.Single)
 			{
 				VirtualView.SelectedItem = _listBox.SelectedItem;
@@ -82,23 +88,10 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (handler._listBox == null) return;
 
+			handler._listBox.MauiTemplate = view.ItemTemplate;
+			handler._listBox.MauiCollectionView = view;
 			handler._listBox.ItemsSource = view.ItemsSource as IEnumerable;
 			handler.UpdateEmptyView();
-
-			// Set up item template if available
-			handler.UpdateItemTemplate();
-		}
-
-		void UpdateItemTemplate()
-		{
-			if (_listBox == null || VirtualView == null) return;
-
-			var template = VirtualView.ItemTemplate;
-			if (template != null)
-			{
-				_listBox.ItemTemplate = null; // Clear WPF template — we'll use converter
-				_listBox.ItemTemplateSelector = new MauiDataTemplateSelector(template, VirtualView);
-			}
 		}
 
 		void UpdateEmptyView()
@@ -134,7 +127,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (handler._listBox == null) return;
 			handler._listBox.SelectionMode = view.SelectionMode switch
 			{
-				Microsoft.Maui.Controls.SelectionMode.None => System.Windows.Controls.SelectionMode.Single, // WPF has no "none" — we disable selection handling
+				Microsoft.Maui.Controls.SelectionMode.None => System.Windows.Controls.SelectionMode.Single,
 				Microsoft.Maui.Controls.SelectionMode.Single => System.Windows.Controls.SelectionMode.Single,
 				Microsoft.Maui.Controls.SelectionMode.Multiple => System.Windows.Controls.SelectionMode.Extended,
 				_ => System.Windows.Controls.SelectionMode.Single,
@@ -152,70 +145,55 @@ namespace Microsoft.Maui.Handlers.WPF
 				_listBox.SelectionChanged -= OnSelectionChanged;
 			base.DisconnectHandler(platformView);
 		}
-
-		// DataTemplateSelector that uses MAUI DataTemplate to create WPF content
-		class MauiDataTemplateSelector : System.Windows.Controls.DataTemplateSelector
-		{
-			readonly Microsoft.Maui.Controls.DataTemplate _mauiTemplate;
-			readonly Microsoft.Maui.Controls.CollectionView _collectionView;
-
-			public MauiDataTemplateSelector(Microsoft.Maui.Controls.DataTemplate template, Microsoft.Maui.Controls.CollectionView cv)
-			{
-				_mauiTemplate = template;
-				_collectionView = cv;
-			}
-
-			public override System.Windows.DataTemplate SelectTemplate(object item, DependencyObject container)
-			{
-				// Create a WPF DataTemplate that hosts MAUI content
-				var factory = new FrameworkElementFactory(typeof(MauiContentPresenter));
-				factory.SetValue(MauiContentPresenter.MauiTemplateProperty, _mauiTemplate);
-				factory.SetValue(MauiContentPresenter.MauiContextSourceProperty, _collectionView);
-
-				return new System.Windows.DataTemplate { VisualTree = factory };
-			}
-		}
 	}
 
-	// A WPF control that hosts MAUI templated content
-	public class MauiContentPresenter : ContentControl
+	/// <summary>
+	/// Custom ListBox that creates MAUI-templated items via PrepareContainerForItemOverride.
+	/// </summary>
+	public class MauiCollectionListBox : WListBox
 	{
-		public static readonly DependencyProperty MauiTemplateProperty =
-			DependencyProperty.Register("MauiTemplate", typeof(Microsoft.Maui.Controls.DataTemplate),
-				typeof(MauiContentPresenter), new PropertyMetadata(null));
+		internal Microsoft.Maui.Controls.DataTemplate? MauiTemplate { get; set; }
+		internal Microsoft.Maui.Controls.CollectionView? MauiCollectionView { get; set; }
 
-		public static readonly DependencyProperty MauiContextSourceProperty =
-			DependencyProperty.Register("MauiContextSource", typeof(Microsoft.Maui.Controls.CollectionView),
-				typeof(MauiContentPresenter), new PropertyMetadata(null));
-
-		public MauiContentPresenter()
+		protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
 		{
-			DataContextChanged += OnDataContextChanged;
-		}
+			base.PrepareContainerForItemOverride(element, item);
 
-		void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
-		{
-			try
+			if (element is ListBoxItem lbi && MauiTemplate != null && MauiCollectionView != null)
 			{
-				var template = GetValue(MauiTemplateProperty) as Microsoft.Maui.Controls.DataTemplate;
-				var cv = GetValue(MauiContextSourceProperty) as Microsoft.Maui.Controls.CollectionView;
-				if (template == null || cv == null || e.NewValue == null) return;
+				lbi.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch;
+				lbi.Padding = new System.Windows.Thickness(0);
 
-				var content = template.CreateContent() as View;
-				if (content == null) return;
+				try
+				{
+					// Resolve DataTemplateSelector
+					var resolvedTemplate = MauiTemplate;
+					if (MauiTemplate is Microsoft.Maui.Controls.DataTemplateSelector selector)
+						resolvedTemplate = selector.SelectTemplate(item, MauiCollectionView);
 
-				content.BindingContext = e.NewValue;
+					if (resolvedTemplate == null) return;
 
-				var mauiContext = cv.Handler?.MauiContext;
-				if (mauiContext == null) return;
+					var content = resolvedTemplate.CreateContent() as View;
+					if (content == null) return;
 
-				var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, mauiContext);
-				Content = platformView;
-			}
-			catch
-			{
-				// Fallback: display as text
-				Content = new TextBlock { Text = e.NewValue?.ToString() ?? "" };
+					content.BindingContext = item;
+
+					var mauiContext = MauiCollectionView.Handler?.MauiContext;
+					if (mauiContext == null) return;
+
+					var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, mauiContext);
+					lbi.Content = platformView;
+				}
+				catch (Exception ex)
+				{
+					lbi.Content = new TextBlock
+					{
+						Text = item?.ToString() ?? "",
+						TextWrapping = TextWrapping.Wrap,
+						Padding = new System.Windows.Thickness(8, 4, 8, 4),
+					};
+					System.Diagnostics.Debug.WriteLine($"[CollectionView] Template error: {ex.Message}");
+				}
 			}
 		}
 	}

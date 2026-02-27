@@ -7,8 +7,10 @@ using WListBox = System.Windows.Controls.ListBox;
 
 namespace Microsoft.Maui.Handlers.WPF
 {
-	public partial class ListViewHandler : WPFViewHandler<Microsoft.Maui.Controls.ListView, WListBox>
+	public partial class ListViewHandler : WPFViewHandler<Microsoft.Maui.Controls.ListView, FrameworkElement>
 	{
+		MauiListViewListBox? _listBox;
+
 		public static readonly PropertyMapper<Microsoft.Maui.Controls.ListView, ListViewHandler> Mapper =
 			new(ViewMapper)
 			{
@@ -21,72 +23,93 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public ListViewHandler() : base(Mapper) { }
 
-		protected override WListBox CreatePlatformView()
+		protected override FrameworkElement CreatePlatformView()
 		{
-			var lb = new WListBox
+			_listBox = new MauiListViewListBox
 			{
 				HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch,
 				BorderThickness = new System.Windows.Thickness(0),
 			};
-			lb.SelectionChanged += OnSelectionChanged;
-			return lb;
+			_listBox.SelectionChanged += OnSelectionChanged;
+			return _listBox;
 		}
 
 		void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
-			if (VirtualView != null && PlatformView != null)
-				VirtualView.SelectedItem = PlatformView.SelectedItem;
+			if (VirtualView != null && _listBox != null)
+				VirtualView.SelectedItem = _listBox.SelectedItem;
 		}
 
 		static void MapItemsSource(ListViewHandler handler, Microsoft.Maui.Controls.ListView view)
 		{
-			if (handler.PlatformView == null) return;
-			handler.PlatformView.ItemsSource = view.ItemsSource as IEnumerable;
-
-			if (view.ItemTemplate != null)
-			{
-				handler.PlatformView.ItemTemplate = null;
-				handler.PlatformView.ItemTemplateSelector = new MauiListViewTemplateSelector(view.ItemTemplate, view);
-			}
+			if (handler._listBox == null) return;
+			handler._listBox.MauiTemplate = view.ItemTemplate;
+			handler._listBox.MauiListView = view;
+			handler._listBox.ItemsSource = view.ItemsSource as IEnumerable;
 		}
 
 		static void MapSelectedItem(ListViewHandler handler, Microsoft.Maui.Controls.ListView view)
 		{
-			if (handler.PlatformView?.SelectedItem != view.SelectedItem)
-				handler.PlatformView!.SelectedItem = view.SelectedItem;
+			if (handler._listBox?.SelectedItem != view.SelectedItem)
+				handler._listBox!.SelectedItem = view.SelectedItem;
 		}
 
 		static void MapHeader(ListViewHandler handler, Microsoft.Maui.Controls.ListView view) { }
 		static void MapFooter(ListViewHandler handler, Microsoft.Maui.Controls.ListView view) { }
 
-		static void MapSeparatorColor(ListViewHandler handler, Microsoft.Maui.Controls.ListView view)
-		{
-			// WPF ListBox items don't natively have separators; could be added via ItemContainerStyle
-		}
+		static void MapSeparatorColor(ListViewHandler handler, Microsoft.Maui.Controls.ListView view) { }
 
-		protected override void DisconnectHandler(WListBox platformView)
+		protected override void DisconnectHandler(FrameworkElement platformView)
 		{
-			platformView.SelectionChanged -= OnSelectionChanged;
+			if (_listBox != null)
+				_listBox.SelectionChanged -= OnSelectionChanged;
 			base.DisconnectHandler(platformView);
 		}
+	}
 
-		class MauiListViewTemplateSelector : System.Windows.Controls.DataTemplateSelector
+	public class MauiListViewListBox : WListBox
+	{
+		internal Microsoft.Maui.Controls.DataTemplate? MauiTemplate { get; set; }
+		internal Microsoft.Maui.Controls.ListView? MauiListView { get; set; }
+
+		protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
 		{
-			readonly Microsoft.Maui.Controls.DataTemplate _mauiTemplate;
-			readonly Microsoft.Maui.Controls.ListView _listView;
+			base.PrepareContainerForItemOverride(element, item);
 
-			public MauiListViewTemplateSelector(Microsoft.Maui.Controls.DataTemplate template, Microsoft.Maui.Controls.ListView lv)
+			if (element is ListBoxItem lbi && MauiTemplate != null && MauiListView != null)
 			{
-				_mauiTemplate = template;
-				_listView = lv;
-			}
+				lbi.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch;
+				lbi.Padding = new System.Windows.Thickness(0);
 
-			public override System.Windows.DataTemplate SelectTemplate(object item, DependencyObject container)
-			{
-				var factory = new FrameworkElementFactory(typeof(MauiContentPresenter));
-				factory.SetValue(MauiContentPresenter.MauiTemplateProperty, _mauiTemplate);
-				factory.SetValue(MauiContentPresenter.MauiContextSourceProperty, (object?)null);
-				return new System.Windows.DataTemplate { VisualTree = factory };
+				try
+				{
+					var resolvedTemplate = MauiTemplate;
+					if (MauiTemplate is Microsoft.Maui.Controls.DataTemplateSelector selector)
+						resolvedTemplate = selector.SelectTemplate(item, MauiListView);
+
+					if (resolvedTemplate == null) return;
+
+					var content = resolvedTemplate.CreateContent() as View;
+					if (content == null) return;
+
+					content.BindingContext = item;
+
+					var mauiContext = MauiListView.Handler?.MauiContext;
+					if (mauiContext == null) return;
+
+					var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, mauiContext);
+					lbi.Content = platformView;
+				}
+				catch (Exception ex)
+				{
+					lbi.Content = new TextBlock
+					{
+						Text = item?.ToString() ?? "",
+						TextWrapping = TextWrapping.Wrap,
+						Padding = new System.Windows.Thickness(8, 4, 8, 4),
+					};
+					System.Diagnostics.Debug.WriteLine($"[ListView] Template error: {ex.Message}");
+				}
 			}
 		}
 	}
