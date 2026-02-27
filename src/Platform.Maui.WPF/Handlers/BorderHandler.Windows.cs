@@ -12,24 +12,32 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		protected override WBorder CreatePlatformView()
 		{
-			return new WBorder
+			var border = new WBorder
 			{
 				BorderThickness = new System.Windows.Thickness(1),
 				BorderBrush = System.Windows.Media.Brushes.Gray,
 				Padding = new System.Windows.Thickness(0),
 			};
+
+			_contentPanel = new ContentPanel();
+			border.Child = _contentPanel;
+
+			return border;
 		}
 
 		public override void SetVirtualView(IView view)
 		{
 			base.SetVirtualView(view);
 
-			_contentPanel = new ContentPanel
+			if (_contentPanel != null)
 			{
-				CrossPlatformMeasure = VirtualView.CrossPlatformMeasure,
-				CrossPlatformArrange = VirtualView.CrossPlatformArrange,
-			};
-			PlatformView.Child = _contentPanel;
+				_contentPanel.CrossPlatformMeasure = VirtualView.CrossPlatformMeasure;
+				_contentPanel.CrossPlatformArrange = VirtualView.CrossPlatformArrange;
+
+				// Re-run MapContent since it ran during base.SetVirtualView
+				// before _contentPanel was fully set up
+				MapContent(this, (IBorderView)view);
+			}
 		}
 
 		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
@@ -50,6 +58,10 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (border.PresentedContent is IView view)
 			{
 				handler._contentPanel.Children.Add((UIElement)view.ToPlatform(handler.MauiContext));
+			}
+			else if (border is Microsoft.Maui.Controls.Border mauiBorder && mauiBorder.Content is IView contentView)
+			{
+				handler._contentPanel.Children.Add((UIElement)contentView.ToPlatform(handler.MauiContext));
 			}
 		}
 

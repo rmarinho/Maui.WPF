@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -66,7 +68,6 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (VirtualView == null || _listBox == null) return;
 
-			// When MAUI SelectionMode is None, prevent WPF selection
 			if (VirtualView.SelectionMode == Microsoft.Maui.Controls.SelectionMode.None)
 			{
 				_listBox.UnselectAll();
@@ -79,7 +80,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			}
 			else if (VirtualView.SelectionMode == Microsoft.Maui.Controls.SelectionMode.Multiple)
 			{
-				var selected = new System.Collections.Generic.List<object>();
+				var selected = new List<object>();
 				foreach (var item in _listBox.SelectedItems)
 					selected.Add(item);
 				VirtualView.SelectedItems = selected;
@@ -91,8 +92,31 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (handler._listBox == null) return;
 
 			handler._listBox.MauiTemplate = view.ItemTemplate;
+			handler._listBox.MauiGroupHeaderTemplate = view.GroupHeaderTemplate;
+			handler._listBox.MauiGroupFooterTemplate = view.GroupFooterTemplate;
+			handler._listBox.IsGrouped = view.IsGrouped;
 			handler._listBox.MauiCollectionView = view;
-			handler._listBox.ItemsSource = view.ItemsSource as IEnumerable;
+
+			if (view.IsGrouped && view.ItemsSource is IEnumerable source)
+			{
+				// Flatten groups into a single list with header/footer markers
+				var flat = new List<GroupedItem>();
+				foreach (var group in source)
+				{
+					flat.Add(new GroupedItem(group, GroupedItemKind.Header));
+					if (group is IEnumerable children)
+					{
+						foreach (var child in children)
+							flat.Add(new GroupedItem(child, GroupedItemKind.Item));
+					}
+				}
+				handler._listBox.ItemsSource = flat;
+			}
+			else
+			{
+				handler._listBox.ItemsSource = view.ItemsSource as IEnumerable;
+			}
+
 			handler.UpdateEmptyView();
 		}
 
@@ -149,53 +173,97 @@ namespace Microsoft.Maui.Handlers.WPF
 		}
 	}
 
+	enum GroupedItemKind { Header, Item, Footer }
+
+	class GroupedItem
+	{
+		public object Data { get; }
+		public GroupedItemKind Kind { get; }
+		public GroupedItem(object data, GroupedItemKind kind) { Data = data; Kind = kind; }
+	}
+
 	/// <summary>
 	/// Custom ListBox that creates MAUI-templated items via PrepareContainerForItemOverride.
 	/// </summary>
 	public class MauiCollectionListBox : WListBox
 	{
 		internal Microsoft.Maui.Controls.DataTemplate? MauiTemplate { get; set; }
+		internal Microsoft.Maui.Controls.DataTemplate? MauiGroupHeaderTemplate { get; set; }
+		internal Microsoft.Maui.Controls.DataTemplate? MauiGroupFooterTemplate { get; set; }
+		internal bool IsGrouped { get; set; }
 		internal Microsoft.Maui.Controls.CollectionView? MauiCollectionView { get; set; }
 
 		protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
 		{
 			base.PrepareContainerForItemOverride(element, item);
 
-			if (element is ListBoxItem lbi && MauiTemplate != null && MauiCollectionView != null)
+			if (element is not ListBoxItem lbi || MauiCollectionView == null) return;
+
+			lbi.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch;
+			lbi.Padding = new System.Windows.Thickness(0);
+
+			try
 			{
-				lbi.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch;
-				lbi.Padding = new System.Windows.Thickness(0);
+				object dataItem;
+				Microsoft.Maui.Controls.DataTemplate? template;
 
-				try
+				if (item is GroupedItem gi)
 				{
-					// Resolve DataTemplateSelector
-					var resolvedTemplate = MauiTemplate;
-					if (MauiTemplate is Microsoft.Maui.Controls.DataTemplateSelector selector)
-						resolvedTemplate = selector.SelectTemplate(item, MauiCollectionView);
+					dataItem = gi.Data;
+					template = gi.Kind == GroupedItemKind.Header ? MauiGroupHeaderTemplate
+						: gi.Kind == GroupedItemKind.Footer ? MauiGroupFooterTemplate
+						: MauiTemplate;
 
-					if (resolvedTemplate == null) return;
-
-					var content = resolvedTemplate.CreateContent() as View;
-					if (content == null) return;
-
-					content.BindingContext = item;
-
-					var mauiContext = MauiCollectionView.Handler?.MauiContext;
-					if (mauiContext == null) return;
-
-					var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, mauiContext);
-					lbi.Content = platformView;
+					if (gi.Kind != GroupedItemKind.Item)
+					{
+						lbi.IsHitTestVisible = true;
+						lbi.Focusable = false;
+					}
 				}
-				catch (Exception ex)
+				else
+				{
+					dataItem = item;
+					template = MauiTemplate;
+				}
+
+				if (template == null)
 				{
 					lbi.Content = new TextBlock
 					{
-						Text = item?.ToString() ?? "",
-						TextWrapping = TextWrapping.Wrap,
+						Text = dataItem?.ToString() ?? "",
 						Padding = new System.Windows.Thickness(8, 4, 8, 4),
 					};
-					System.Diagnostics.Debug.WriteLine($"[CollectionView] Template error: {ex.Message}");
+					return;
 				}
+
+				// Resolve DataTemplateSelector
+				var resolvedTemplate = template;
+				if (template is Microsoft.Maui.Controls.DataTemplateSelector selector)
+					resolvedTemplate = selector.SelectTemplate(dataItem, MauiCollectionView);
+
+				if (resolvedTemplate == null) return;
+
+				var content = resolvedTemplate.CreateContent() as View;
+				var mauiContext = MauiCollectionView.Handler?.MauiContext;
+				if (content == null) return;
+
+				content.BindingContext = dataItem;
+
+				if (mauiContext == null) return;
+
+				var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, mauiContext);
+				lbi.Content = platformView;
+			}
+			catch (Exception ex)
+			{
+				var dataText = (item is GroupedItem g ? g.Data : item)?.ToString() ?? "";
+				lbi.Content = new TextBlock
+				{
+					Text = dataText,
+					TextWrapping = TextWrapping.Wrap,
+					Padding = new System.Windows.Thickness(8, 4, 8, 4),
+				};
+				System.Diagnostics.Debug.WriteLine($"[CollectionView] Template error for {dataText}: {ex.Message}");
 			}
 		}
 	}
