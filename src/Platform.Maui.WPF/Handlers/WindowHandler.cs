@@ -56,7 +56,6 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (platformView.Content is null)
 				platformView.Content = new WindowRootViewContainer();
 
-
 			// Set up modal navigation overlay host
 			Microsoft.Maui.Platform.WPF.ModalNavigationManager.EnsureOverlayHost(platformView);
 
@@ -97,9 +96,11 @@ namespace Microsoft.Maui.Handlers.WPF
 			_ = handler.MauiContext ?? throw new InvalidOperationException($"{nameof(MauiContext)} should have been set by base class.");
 
 			var container = FindRootViewContainer(handler.PlatformView);
+
 			if (container != null)
 			{
-				container.AddPage((FrameworkElement)handler.VirtualView.Content.ToPlatform(handler.MauiContext));
+				var platformEl = (FrameworkElement)handler.VirtualView.Content.ToPlatform(handler.MauiContext);
+				container.AddPage(platformEl);
 			}
 		}
 
