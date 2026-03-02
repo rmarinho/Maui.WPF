@@ -17,18 +17,13 @@ namespace Microsoft.Maui.Handlers.WPF
 				var wr = ve.WidthRequest;
 				var hr = ve.HeightRequest;
 				if (wr > 0 && hr > 0)
-				{
-					// Ensure WPF element is measured so Arrange will work
-					(PlatformView as System.Windows.UIElement)?.Measure(new System.Windows.Size(wr, hr));
 					return new Microsoft.Maui.Graphics.Size(wr, hr);
-				}
 			}
 			return base.GetDesiredSize(widthConstraint, heightConstraint);
 		}
 
 		public override void PlatformArrange(Microsoft.Maui.Graphics.Rect rect)
 		{
-			// FlexLayout may arrange shapes with 0 size; use WidthRequest/HeightRequest as fallback
 			if ((rect.Width <= 0 || rect.Height <= 0) && VirtualView is Microsoft.Maui.Controls.VisualElement ve)
 			{
 				var w = ve.WidthRequest > 0 ? ve.WidthRequest : rect.Width;

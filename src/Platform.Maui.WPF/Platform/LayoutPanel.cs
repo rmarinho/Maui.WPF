@@ -18,10 +18,6 @@ namespace Microsoft.Maui.Platform.WPF
 		{
 		}
 
-
-		// TODO: Possibly reconcile this code with ViewHandlerExtensions.MeasureVirtualView
-		// If you make changes here please review if those changes should also
-		// apply to ViewHandlerExtensions.MeasureVirtualView
 		protected override WSize MeasureOverride(WSize availableSize)
 		{
 			if (CrossPlatformMeasure == null)
@@ -48,9 +44,6 @@ namespace Microsoft.Maui.Platform.WPF
 			return new WSize(width, height);
 		}
 
-		// TODO: Possibly reconcile this code with ViewHandlerExtensions.LayoutVirtualView
-		// If you make changes here please review if those changes should also
-		// apply to ViewHandlerExtensions.LayoutVirtualView
 		protected override WSize ArrangeOverride(WSize finalSize)
 		{
 			if (CrossPlatformArrange == null)
