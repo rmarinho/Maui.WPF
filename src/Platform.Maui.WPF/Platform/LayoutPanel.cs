@@ -34,11 +34,12 @@ namespace Microsoft.Maui.Platform.WPF
 			height = crossPlatformSize.Height;
 
 			// Use the cross-platform result to constrain child measurement.
-			// Passing raw availableSize (which may be ∞) causes children to
-			// report inflated desired sizes, breaking CollectionView item sizing.
+			// When available size is ∞ (e.g. inside ScrollView or CollectionView),
+			// use the MAUI-calculated size as the constraint so children don't
+			// report inflated desired sizes.
 			var constrainedSize = new WSize(
-				double.IsInfinity(availableSize.Width) ? availableSize.Width : Math.Max(width, availableSize.Width),
-				double.IsInfinity(availableSize.Height) ? availableSize.Height : Math.Max(height, availableSize.Height));
+				double.IsInfinity(availableSize.Width) ? width : Math.Max(width, availableSize.Width),
+				double.IsInfinity(availableSize.Height) ? height : Math.Max(height, availableSize.Height));
 
 			// WPF requires all children to be measured during MeasureOverride.
 			// MAUI's CrossPlatformMeasure may not call WPF Measure on all children

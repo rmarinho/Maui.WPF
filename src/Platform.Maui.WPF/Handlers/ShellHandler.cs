@@ -352,10 +352,28 @@ namespace Microsoft.Maui.Handlers.WPF
 			catch { }
 		}
 
-		void OnShellItemSelected(ShellItem item)
+		async void OnShellItemSelected(ShellItem item)
 		{
 			if (VirtualView == null) return;
-			VirtualView.CurrentItem = item;
+			
+			try
+			{
+				// Use absolute route navigation to pop any pushed pages and show section root
+				var route = item.Route;
+				if (!string.IsNullOrEmpty(route))
+				{
+					await VirtualView.GoToAsync("//" + route);
+				}
+				else
+				{
+					VirtualView.CurrentItem = item;
+				}
+			}
+			catch
+			{
+				VirtualView.CurrentItem = item;
+			}
+			ShowCurrentPage();
 		}
 
 		async void OnBackButtonClicked()
@@ -368,7 +386,10 @@ namespace Microsoft.Maui.Handlers.WPF
 				// GoToAsync may not fire Navigated, so refresh manually
 				ShowCurrentPage();
 			}
-			catch { }
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"[Shell] Back navigation failed: {ex.Message}");
+			}
 		}
 
 		static void MapFlyoutBehavior(ShellHandler handler, Shell shell)
