@@ -32,6 +32,10 @@
     <EmbeddedResource Include="Resources\food_01.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Resources\Raw\ReactTodoApp\**\*" CopyToOutputDirectory="PreserveNewest" Link="ReactTodoApp\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Maui" Version="13.0.0" />
