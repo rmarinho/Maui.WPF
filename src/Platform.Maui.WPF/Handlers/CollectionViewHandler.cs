@@ -316,6 +316,37 @@ namespace Microsoft.Maui.Handlers.WPF
 
 				var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, mauiContext);
 				lbi.Content = platformView;
+
+				// Wire tap gestures from MAUI view to ListBoxItem click
+				// ListBoxItem may intercept mouse events preventing inner gesture handlers from firing
+				var mauiContent = content;
+				lbi.PreviewMouseLeftButtonUp += (s, e) =>
+				{
+					if (mauiContent == null) return;
+					foreach (var recognizer in mauiContent.GestureRecognizers)
+					{
+						if (recognizer is Microsoft.Maui.Controls.TapGestureRecognizer tap)
+						{
+							if (tap.Command != null && tap.Command.CanExecute(tap.CommandParameter))
+							{
+								tap.Command.Execute(tap.CommandParameter);
+								break;
+							}
+							
+							var sendTapped = typeof(Microsoft.Maui.Controls.TapGestureRecognizer).GetMethod(
+								"SendTapped", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+							if (sendTapped != null)
+							{
+								var parameters = sendTapped.GetParameters();
+								if (parameters.Length == 1)
+									sendTapped.Invoke(tap, new object?[] { mauiContent });
+								else if (parameters.Length == 2)
+									sendTapped.Invoke(tap, new object?[] { mauiContent, null });
+							}
+							break;
+						}
+					}
+				};
 			}
 			catch (Exception ex)
 			{
