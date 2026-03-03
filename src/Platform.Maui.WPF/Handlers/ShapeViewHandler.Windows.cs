@@ -12,13 +12,8 @@ namespace Microsoft.Maui.Handlers.WPF
 		public override Microsoft.Maui.Graphics.Size GetDesiredSize(double widthConstraint, double heightConstraint)
 		{
 			var ve = VirtualView as Microsoft.Maui.Controls.VisualElement;
-			if (ve != null)
-			{
-				var wr = ve.WidthRequest;
-				var hr = ve.HeightRequest;
-				if (wr > 0 && hr > 0)
-					return new Microsoft.Maui.Graphics.Size(wr, hr);
-			}
+			if (ve != null && ve.WidthRequest > 0 && ve.HeightRequest > 0)
+				return new Microsoft.Maui.Graphics.Size(ve.WidthRequest, ve.HeightRequest);
 			return base.GetDesiredSize(widthConstraint, heightConstraint);
 		}
 
@@ -50,6 +45,20 @@ namespace Microsoft.Maui.Handlers.WPF
 			return null;
 		}
 
+		static void ApplyShapeSize(System.Windows.FrameworkElement wpfShape, IShapeView shapeView)
+		{
+			// Set explicit Width/Height on child shapes to prevent them stretching
+			// to fill the parent during LayoutPanel.MeasureOverride, which causes layout loops.
+			var ve = shapeView as Microsoft.Maui.Controls.VisualElement;
+			if (ve != null)
+			{
+				if (ve.WidthRequest > 0)
+					wpfShape.Width = ve.WidthRequest;
+				if (ve.HeightRequest > 0)
+					wpfShape.Height = ve.HeightRequest;
+			}
+		}
+
 		public static void MapShape(ShapeViewHandler handler, IShapeView shapeView)
 		{
 			if (shapeView is Microsoft.Maui.Controls.Shapes.Ellipse)
@@ -58,6 +67,7 @@ namespace Microsoft.Maui.Handlers.WPF
 				wpfEllipse.Fill = ToPaintBrush(shapeView.Fill);
 				wpfEllipse.Stroke = ToPaintBrush(shapeView.Stroke);
 				wpfEllipse.StrokeThickness = shapeView.StrokeThickness;
+				ApplyShapeSize(wpfEllipse, shapeView);
 				handler.PlatformView.Child = wpfEllipse;
 			}
 			else if (shapeView is Microsoft.Maui.Controls.Shapes.Rectangle)
@@ -66,6 +76,7 @@ namespace Microsoft.Maui.Handlers.WPF
 				wpfRect.Fill = ToPaintBrush(shapeView.Fill);
 				wpfRect.Stroke = ToPaintBrush(shapeView.Stroke);
 				wpfRect.StrokeThickness = shapeView.StrokeThickness;
+				ApplyShapeSize(wpfRect, shapeView);
 				handler.PlatformView.Child = wpfRect;
 			}
 			else if (shapeView is Microsoft.Maui.Controls.Shapes.RoundRectangle rr)
@@ -76,6 +87,7 @@ namespace Microsoft.Maui.Handlers.WPF
 				wpfRect.StrokeThickness = shapeView.StrokeThickness;
 				wpfRect.RadiusX = rr.CornerRadius.TopLeft;
 				wpfRect.RadiusY = rr.CornerRadius.TopLeft;
+				ApplyShapeSize(wpfRect, shapeView);
 				handler.PlatformView.Child = wpfRect;
 			}
 			else if (shapeView is Microsoft.Maui.Controls.Shapes.Line line)
@@ -97,7 +109,6 @@ namespace Microsoft.Maui.Handlers.WPF
 					var wpfPath = new System.Windows.Shapes.Path();
 					if (pathShape.Data != null)
 					{
-						// MAUI Geometry.ToString() may produce path markup
 						var geoStr = pathShape.Data.ToString();
 						if (!string.IsNullOrEmpty(geoStr))
 							wpfPath.Data = System.Windows.Media.Geometry.Parse(geoStr);
@@ -106,6 +117,7 @@ namespace Microsoft.Maui.Handlers.WPF
 					wpfPath.Stroke = ToPaintBrush(shapeView.Stroke);
 					wpfPath.Fill = ToPaintBrush(shapeView.Fill);
 					wpfPath.Stretch = System.Windows.Media.Stretch.Uniform;
+					ApplyShapeSize(wpfPath, shapeView);
 					handler.PlatformView.Child = wpfPath;
 				}
 				catch { }
@@ -122,6 +134,7 @@ namespace Microsoft.Maui.Handlers.WPF
 				wpfPolygon.Stroke = ToPaintBrush(shapeView.Stroke);
 				wpfPolygon.Fill = ToPaintBrush(shapeView.Fill);
 				wpfPolygon.Stretch = System.Windows.Media.Stretch.Uniform;
+				ApplyShapeSize(wpfPolygon, shapeView);
 				handler.PlatformView.Child = wpfPolygon;
 			}
 			else if (shapeView is Microsoft.Maui.Controls.Shapes.Polyline polyline)
@@ -136,6 +149,7 @@ namespace Microsoft.Maui.Handlers.WPF
 				wpfPolyline.Stroke = ToPaintBrush(shapeView.Stroke);
 				wpfPolyline.Fill = ToPaintBrush(shapeView.Fill);
 				wpfPolyline.Stretch = System.Windows.Media.Stretch.Uniform;
+				ApplyShapeSize(wpfPolyline, shapeView);
 				handler.PlatformView.Child = wpfPolyline;
 			}
 		}

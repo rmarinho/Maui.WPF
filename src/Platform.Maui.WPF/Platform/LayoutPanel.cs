@@ -33,13 +33,22 @@ namespace Microsoft.Maui.Platform.WPF
 			// WPF requires all children to be measured during MeasureOverride.
 			// MAUI's CrossPlatformMeasure may not call WPF Measure on all children
 			// (e.g., views with explicit WidthRequest/HeightRequest).
+			double maxChildHeight = 0;
 			foreach (System.Windows.UIElement child in InternalChildren)
 			{
 				child.Measure(availableSize);
+				if (child.DesiredSize.Height > maxChildHeight)
+					maxChildHeight = child.DesiredSize.Height;
 			}
 
 			width = crossPlatformSize.Width;
 			height = crossPlatformSize.Height;
+
+			// Ensure the panel is at least as tall as its tallest child.
+			// FlexLayout.CrossPlatformMeasure can underreport height when children
+			// have explicit WidthRequest/HeightRequest (MAUI skips GetDesiredSize).
+			if (maxChildHeight > height)
+				height = maxChildHeight;
 
 			return new WSize(width, height);
 		}
