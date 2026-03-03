@@ -57,6 +57,12 @@ namespace Microsoft.Maui.Handlers.WPF
 				if (brush != null)
 					handler.PlatformView.Background = brush;
 			}
+			else if (view is Microsoft.Maui.Controls.BoxView bv && bv.Color != null)
+			{
+				var brush = ToBrush(bv.Color);
+				if (brush != null)
+					handler.PlatformView.Background = brush;
+			}
 		}
 
 		public static void MapCornerRadius(BoxViewHandler handler, IShapeView view)

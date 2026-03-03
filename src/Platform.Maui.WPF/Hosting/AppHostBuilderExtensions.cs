@@ -177,6 +177,12 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 		internal static MauiAppBuilder RemapForControls(this MauiAppBuilder builder)
 		{
+			// Wire up InvalidateMeasure so MAUI property changes propagate to WPF layout
+			Microsoft.Maui.Handlers.ViewHandler.ViewCommandMapper.ModifyMapping(nameof(IView.InvalidateMeasure), (handler, view, args, _) =>
+			{
+				(handler.PlatformView as System.Windows.UIElement)?.InvalidateMeasure();
+			});
+
 			// Override base ViewMapper entries that target WinUI types
 			// so they work with WPF FrameworkElement instead
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Width), (handler, view, _) =>
