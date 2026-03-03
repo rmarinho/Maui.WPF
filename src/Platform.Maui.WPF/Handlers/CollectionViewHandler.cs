@@ -28,6 +28,7 @@ namespace Microsoft.Maui.Handlers.WPF
 				[nameof(Microsoft.Maui.Controls.SelectableItemsView.SelectedItem)] = MapSelectedItem,
 				[nameof(Microsoft.Maui.Controls.SelectableItemsView.SelectionMode)] = MapSelectionMode,
 				[nameof(Microsoft.Maui.Controls.ItemsView.EmptyView)] = MapEmptyView,
+				[nameof(Microsoft.Maui.Controls.StructuredItemsView.ItemsLayout)] = MapItemsLayout,
 			};
 
 		public static readonly CommandMapper<Microsoft.Maui.Controls.CollectionView, CollectionViewHandler> CommandMapper = new(ViewCommandMapper);
@@ -165,10 +166,65 @@ namespace Microsoft.Maui.Handlers.WPF
 			handler.UpdateEmptyView();
 		}
 
+		static void MapItemsLayout(CollectionViewHandler handler, Microsoft.Maui.Controls.CollectionView view)
+		{
+			if (handler._listBox == null) return;
+
+			if (view.ItemsLayout is Microsoft.Maui.Controls.GridItemsLayout gridLayout)
+			{
+				var span = Math.Max(1, gridLayout.Span);
+				var hSpacing = gridLayout.HorizontalItemSpacing;
+				var vSpacing = gridLayout.VerticalItemSpacing;
+
+				var wrapPanel = new System.Windows.Controls.WrapPanel
+				{
+					Orientation = System.Windows.Controls.Orientation.Horizontal,
+				};
+
+				handler._listBox.ItemsPanel = new System.Windows.Controls.ItemsPanelTemplate(
+					new System.Windows.FrameworkElementFactory(typeof(System.Windows.Controls.WrapPanel)));
+				handler._listBox.Tag = span; // Store span for item width calculation
+
+				// Re-apply items to pick up new template
+				handler._listBox.SizeChanged -= handler.OnListBoxSizeChanged;
+				handler._listBox.SizeChanged += handler.OnListBoxSizeChanged;
+
+				// Force re-render of items
+				MapItemsSource(handler, view);
+			}
+			else
+			{
+				// Default: vertical stack
+				handler._listBox.ItemsPanel = new System.Windows.Controls.ItemsPanelTemplate(
+					new System.Windows.FrameworkElementFactory(typeof(System.Windows.Controls.VirtualizingStackPanel)));
+				handler._listBox.Tag = null;
+				handler._listBox.SizeChanged -= handler.OnListBoxSizeChanged;
+				MapItemsSource(handler, view);
+			}
+		}
+
+		void OnListBoxSizeChanged(object sender, System.Windows.SizeChangedEventArgs e)
+		{
+			if (_listBox?.Tag is int span && span > 0)
+			{
+				var totalWidth = e.NewSize.Width;
+				var itemWidth = (totalWidth - 8) / span; // rough spacing
+				foreach (var item in _listBox.Items)
+				{
+					var container = _listBox.ItemContainerGenerator.ContainerFromItem(item) as ListBoxItem;
+					if (container != null)
+						container.Width = Math.Max(50, itemWidth);
+				}
+			}
+		}
+
 		protected override void DisconnectHandler(FrameworkElement platformView)
 		{
 			if (_listBox != null)
+			{
 				_listBox.SelectionChanged -= OnSelectionChanged;
+				_listBox.SizeChanged -= OnListBoxSizeChanged;
+			}
 			base.DisconnectHandler(platformView);
 		}
 	}
@@ -201,6 +257,13 @@ namespace Microsoft.Maui.Handlers.WPF
 
 			lbi.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Stretch;
 			lbi.Padding = new System.Windows.Thickness(0);
+
+			// For GridItemsLayout, set item width based on span
+			if (Tag is int span && span > 0 && ActualWidth > 0)
+			{
+				var itemWidth = (ActualWidth - 8) / span;
+				lbi.Width = Math.Max(50, itemWidth);
+			}
 
 			try
 			{
