@@ -30,24 +30,31 @@ namespace Microsoft.Maui.Platform.WPF
 
 			var crossPlatformSize = CrossPlatformMeasure(width, height);
 
+			width = crossPlatformSize.Width;
+			height = crossPlatformSize.Height;
+
+			// Use the cross-platform result to constrain child measurement.
+			// Passing raw availableSize (which may be ∞) causes children to
+			// report inflated desired sizes, breaking CollectionView item sizing.
+			var constrainedSize = new WSize(
+				double.IsInfinity(availableSize.Width) ? availableSize.Width : Math.Max(width, availableSize.Width),
+				double.IsInfinity(availableSize.Height) ? availableSize.Height : Math.Max(height, availableSize.Height));
+
 			// WPF requires all children to be measured during MeasureOverride.
 			// MAUI's CrossPlatformMeasure may not call WPF Measure on all children
 			// (e.g., views with explicit WidthRequest/HeightRequest).
 			double maxChildHeight = 0;
 			foreach (System.Windows.UIElement child in InternalChildren)
 			{
-				child.Measure(availableSize);
+				child.Measure(constrainedSize);
 				if (child.DesiredSize.Height > maxChildHeight)
 					maxChildHeight = child.DesiredSize.Height;
 			}
 
-			width = crossPlatformSize.Width;
-			height = crossPlatformSize.Height;
-
 			// Ensure the panel is at least as tall as its tallest child.
 			// FlexLayout.CrossPlatformMeasure can underreport height when children
 			// have explicit WidthRequest/HeightRequest (MAUI skips GetDesiredSize).
-			if (maxChildHeight > height)
+			if (maxChildHeight > height && !double.IsInfinity(maxChildHeight))
 				height = maxChildHeight;
 
 			return new WSize(width, height);
