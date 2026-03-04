@@ -39,6 +39,9 @@ namespace Microsoft.Maui.Platform.WPF
 
 			this.SetApplicationHandler(Application, applicationContext);
 
+			// Apply platform theme to MAUI Application so AppThemeBinding resolves correctly
+			ThemeManager.ApplyThemeToApplication();
+
 			this.CreatePlatformWindow(Application, args);
 
 			//Services.InvokeLifecycleEvents<WindowsLifecycle.OnLaunched>(del => del(this, args));

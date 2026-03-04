@@ -5,7 +5,8 @@ using Microsoft.Maui.ApplicationModel;
 namespace Microsoft.Maui.Platform.WPF
 {
 	/// <summary>
-	/// Detects Windows dark/light theme and fires RequestedThemeChanged.
+	/// Detects Windows dark/light theme, sets PlatformAppTheme on the MAUI Application,
+	/// and fires RequestedThemeChanged so AppThemeBinding values resolve correctly.
 	/// </summary>
 	public static class ThemeManager
 	{
@@ -35,6 +36,31 @@ namespace Microsoft.Maui.Platform.WPF
 			SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 		}
 
+		/// <summary>
+		/// Must be called after the MAUI Application is created to set the initial PlatformAppTheme.
+		/// This enables AppThemeBinding to resolve Light/Dark values correctly.
+		/// </summary>
+		public static void ApplyThemeToApplication()
+		{
+			var app = Microsoft.Maui.Controls.Application.Current;
+			if (app == null) return;
+
+			_currentTheme = GetCurrentTheme();
+			SetPlatformAppTheme(app, _currentTheme);
+		}
+
+		static void SetPlatformAppTheme(Microsoft.Maui.Controls.Application app, AppTheme theme)
+		{
+			try
+			{
+				// PlatformAppTheme has a public setter at runtime but is hidden at compile time
+				var prop = typeof(Microsoft.Maui.Controls.Application).GetProperty("PlatformAppTheme",
+					System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+				prop?.SetValue(app, theme);
+			}
+			catch { }
+		}
+
 		static void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
 		{
 			if (e.Category == UserPreferenceCategory.General)
@@ -43,21 +69,10 @@ namespace Microsoft.Maui.Platform.WPF
 				if (newTheme != _currentTheme)
 				{
 					_currentTheme = newTheme;
-					// Fire the MAUI theme changed event via the Application
 					var app = Microsoft.Maui.Controls.Application.Current;
 					if (app != null)
 					{
-						try
-						{
-							// Use reflection to set the platform app theme
-							var prop = typeof(Microsoft.Maui.Controls.Application).GetProperty("PlatformAppTheme",
-								System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-							// PlatformAppTheme is read-only, but we can trigger the change event
-							var method = typeof(Microsoft.Maui.Controls.Application).GetMethod("TriggerThemeChanged",
-								System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-							method?.Invoke(app, null);
-						}
-						catch { }
+						SetPlatformAppTheme(app, newTheme);
 					}
 				}
 			}

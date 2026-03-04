@@ -50,13 +50,13 @@ namespace Microsoft.Maui.Handlers.WPF
 			ColumnDefinitions.Add(new WColumnDefinition { Width = WGridLength.Auto });
 			ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(1, WGridUnitType.Star) });
 
-			// Flyout panel
+			// Flyout panel - use Shell.FlyoutBackgroundColor mapping, default neutral
 			_flyoutPanel = new WGrid
 			{
 				Width = 250,
-				Background = new WSolidColorBrush(WColor.FromRgb(45, 45, 48)),
 				Visibility = WVisibility.Collapsed,
 			};
+			UpdateFlyoutTheme();
 			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(50) });
 			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) });
 
@@ -89,12 +89,12 @@ namespace Microsoft.Maui.Handlers.WPF
 			mainGrid.RowDefinitions.Add(new WRowDefinition { Height = WGridLength.Auto });
 			mainGrid.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) });
 
-			// Toolbar
+			// Toolbar - background set by Shell.BackgroundColor mapping
 			_toolbar = new global::System.Windows.Controls.DockPanel
 			{
 				Height = 44,
-				Background = new WSolidColorBrush(WColor.FromRgb(240, 240, 240)),
 			};
+			UpdateToolbarTheme();
 
 			_hamburgerButton = new WButton
 			{
@@ -147,6 +147,39 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		void TabControl_SelectionChanged(object sender, global::System.Windows.Controls.SelectionChangedEventArgs e) { }
 
+		static bool IsDarkTheme()
+		{
+			var app = Microsoft.Maui.Controls.Application.Current;
+			if (app != null && app.RequestedTheme != AppTheme.Unspecified)
+				return app.RequestedTheme == AppTheme.Dark;
+			return Platform.WPF.ThemeManager.GetCurrentTheme() == AppTheme.Dark;
+		}
+
+		void UpdateFlyoutTheme()
+		{
+			bool dark = IsDarkTheme();
+			_flyoutPanel.Background = dark
+				? new WSolidColorBrush(WColor.FromRgb(30, 30, 30))
+				: new WSolidColorBrush(WColor.FromRgb(240, 240, 240));
+		}
+
+		void UpdateToolbarTheme()
+		{
+			bool dark = IsDarkTheme();
+			_toolbar.Background = dark
+				? new WSolidColorBrush(WColor.FromRgb(30, 30, 30))
+				: new WSolidColorBrush(WColor.FromRgb(240, 240, 240));
+		}
+
+		/// <summary>
+		/// Call when theme changes to update Shell chrome colors.
+		/// </summary>
+		public void UpdateTheme()
+		{
+			UpdateFlyoutTheme();
+			UpdateToolbarTheme();
+		}
+
 		public void ToggleFlyout(bool open)
 		{
 			_flyoutOpen = open;
@@ -177,6 +210,21 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (brush != null) _flyoutPanel.Background = brush;
 		}
 
+		public void SetBarBackground(WBrush? brush)
+		{
+			if (brush != null) _toolbar.Background = brush;
+		}
+
+		public void SetBarForeground(WBrush? brush)
+		{
+			if (brush != null)
+			{
+				_titleLabel.Foreground = brush;
+				_hamburgerButton.Foreground = brush;
+				_backButton.Foreground = brush;
+			}
+		}
+
 		public void BuildFlyoutItems(Shell shell)
 		{
 			_flyoutItems.Children.Clear();
@@ -195,7 +243,7 @@ namespace Microsoft.Maui.Handlers.WPF
 					{
 						Content = item.Title ?? item.Route ?? "Item",
 						HorizontalContentAlignment = WHorizontalAlignment.Left,
-						Foreground = global::System.Windows.Media.Brushes.White,
+						Foreground = IsDarkTheme() ? global::System.Windows.Media.Brushes.White : new WSolidColorBrush(WColor.FromRgb(30, 30, 30)),
 						Background = global::System.Windows.Media.Brushes.Transparent,
 						BorderThickness = new WThickness(0),
 						Padding = new WThickness(16, 12, 16, 12),
@@ -245,6 +293,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			{
 				[nameof(Shell.FlyoutBehavior)] = MapFlyoutBehavior,
 				[nameof(Shell.FlyoutBackgroundColor)] = MapFlyoutBackground,
+				[nameof(Shell.BackgroundColor)] = MapShellBackground,
 				[nameof(Shell.Items)] = MapItems,
 				[nameof(Shell.CurrentItem)] = MapCurrentItem,
 			};
@@ -403,6 +452,22 @@ namespace Microsoft.Maui.Handlers.WPF
 				handler.PlatformView.SetFlyoutBackground(new WSolidColorBrush(WColor.FromArgb(
 					(byte)(c.Alpha * 255), (byte)(c.Red * 255),
 					(byte)(c.Green * 255), (byte)(c.Blue * 255))));
+			}
+		}
+
+		static void MapShellBackground(ShellHandler handler, Shell shell)
+		{
+			if (shell.BackgroundColor != null)
+			{
+				var c = shell.BackgroundColor;
+				var brush = new WSolidColorBrush(WColor.FromArgb(
+					(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+					(byte)(c.Green * 255), (byte)(c.Blue * 255)));
+				handler.PlatformView.SetBarBackground(brush);
+			}
+			else
+			{
+				handler.PlatformView.UpdateTheme();
 			}
 		}
 

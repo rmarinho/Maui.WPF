@@ -33,9 +33,9 @@ namespace Microsoft.Maui.Handlers.WPF
 			_toolbarPanel = new System.Windows.Controls.DockPanel
 			{
 				Height = 40,
-				Background = new System.Windows.Media.SolidColorBrush(WColor.FromRgb(240, 240, 240)),
 				LastChildFill = true,
 			};
+			UpdateToolbarTheme();
 
 			_backButton = new WButton
 			{
@@ -98,6 +98,16 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (brush != null)
 				_toolbarPanel.Background = brush;
+		}
+
+		void UpdateToolbarTheme()
+		{
+			bool dark = Platform.WPF.ThemeManager.GetCurrentTheme() == ApplicationModel.AppTheme.Dark;
+			if (Microsoft.Maui.Controls.Application.Current is { } app && app.RequestedTheme != ApplicationModel.AppTheme.Unspecified)
+				dark = app.RequestedTheme == ApplicationModel.AppTheme.Dark;
+			_toolbarPanel.Background = dark
+				? new System.Windows.Media.SolidColorBrush(WColor.FromRgb(30, 30, 30))
+				: new System.Windows.Media.SolidColorBrush(WColor.FromRgb(240, 240, 240));
 		}
 
 		public void SetBarTextColor(WBrush? brush)
