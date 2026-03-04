@@ -397,14 +397,17 @@ namespace Microsoft.Maui.Handlers.WPF
 							{
 								content.BindingContext = item;
 								var platformItem = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, MauiContext);
-								var container = new WBorder
+								// Use Button instead of Border for UIAutomation InvokePattern support
+								var container = new WButton
 								{
-									Child = (System.Windows.UIElement)platformItem,
+									Content = (System.Windows.UIElement)platformItem,
 									Cursor = global::System.Windows.Input.Cursors.Hand,
 									Background = global::System.Windows.Media.Brushes.Transparent,
+									BorderThickness = new WThickness(0),
 									Padding = new WThickness(0, 4, 0, 4),
+									HorizontalContentAlignment = WHorizontalAlignment.Stretch,
 								};
-								container.MouseLeftButtonUp += (s, e) =>
+								container.Click += (s, e) =>
 								{
 									OnShellItemSelected?.Invoke(capturedItem);
 									if (_currentBehavior != FlyoutBehavior.Locked)
