@@ -49,6 +49,9 @@ namespace Microsoft.Maui.Handlers.WPF
 		protected override PlatformView CreatePlatformElement() =>
 			MauiContext?.Services.GetService<PlatformView>() ?? throw new InvalidOperationException($"MauiContext did not have a valid window.");
 
+		// Store delegate so we can unsubscribe
+		Action<AppTheme>? _onThemeChanged;
+
 		protected override void ConnectHandler(PlatformView platformView)
 		{
 			base.ConnectHandler(platformView);
@@ -64,10 +67,28 @@ namespace Microsoft.Maui.Handlers.WPF
 			{
 				SetupMenuBar(platformView, menuBarElement);
 			}
+
+			// Apply theme-appropriate window background
+			ApplyWindowTheme(platformView);
+			_onThemeChanged = theme => PlatformView?.Dispatcher.InvokeAsync(() => ApplyWindowTheme(PlatformView));
+			Platform.WPF.ThemeManager.ThemeChanged += _onThemeChanged;
+		}
+
+		static void ApplyWindowTheme(PlatformView? window)
+		{
+			if (window == null) return;
+			var app = Microsoft.Maui.Controls.Application.Current;
+			bool dark = app?.RequestedTheme == AppTheme.Dark ||
+				(app?.RequestedTheme == AppTheme.Unspecified && Platform.WPF.ThemeManager.GetCurrentTheme() == AppTheme.Dark);
+			window.Background = dark
+				? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(32, 32, 32))
+				: new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 243, 243));
 		}
 
 		protected override void DisconnectHandler(PlatformView platformView)
 		{
+			if (_onThemeChanged != null)
+				Platform.WPF.ThemeManager.ThemeChanged -= _onThemeChanged;
 			//MauiContext
 			//	?.GetNavigationRootManager()
 			//	?.Disconnect();

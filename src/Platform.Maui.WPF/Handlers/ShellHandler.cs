@@ -56,11 +56,12 @@ namespace Microsoft.Maui.Handlers.WPF
 			ColumnDefinitions.Add(new WColumnDefinition { Width = WGridLength.Auto });
 			ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(1, WGridUnitType.Star) });
 
-			// Flyout panel with header / scrollable items / footer
+			// Flyout panel with header / scrollable items / footer using DockPanel
 			_flyoutPanel = new WGrid
 			{
 				Width = 250,
 				Visibility = WVisibility.Collapsed,
+				ClipToBounds = true,
 			};
 			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = WGridLength.Auto }); // header
 			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) }); // items
@@ -69,6 +70,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			_flyoutHeaderHost = new global::System.Windows.Controls.ContentControl
 			{
 				HorizontalContentAlignment = WHorizontalAlignment.Stretch,
+				ClipToBounds = true,
 			};
 			SetRow(_flyoutHeaderHost, 0);
 			_flyoutPanel.Children.Add(_flyoutHeaderHost);
@@ -86,6 +88,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			{
 				HorizontalContentAlignment = WHorizontalAlignment.Stretch,
 				VerticalContentAlignment = WVerticalAlignment.Stretch,
+				ClipToBounds = true,
 			};
 			SetRow(_flyoutFooterHost, 2);
 			_flyoutPanel.Children.Add(_flyoutFooterHost);
@@ -328,12 +331,21 @@ namespace Microsoft.Maui.Handlers.WPF
 					if (footerContent is View footerView)
 					{
 						footerView.BindingContext = shell.FlyoutFooter ?? shell.BindingContext;
-						var platformFooter = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)footerView, MauiContext);
-						if (platformFooter is FrameworkElement fe)
+
+						// Build a native WPF rendering of the footer for reliable layout.
+						// The MAUI LayoutPanel can miscalculate positions in constrained areas.
+						var nativeFooter = BuildNativeFooter(footerView);
+						if (nativeFooter != null)
 						{
-							fe.MinHeight = 80; // Ensure footer is visible
+							_flyoutFooterHost.Content = nativeFooter;
 						}
-						_flyoutFooterHost.Content = platformFooter;
+						else
+						{
+							var platformFooter = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)footerView, MauiContext);
+							if (platformFooter is FrameworkElement fe)
+								fe.MinHeight = 80;
+							_flyoutFooterHost.Content = platformFooter;
+						}
 					}
 				}
 				catch { }
@@ -531,6 +543,102 @@ namespace Microsoft.Maui.Handlers.WPF
 				}
 			}
 			catch { }
+		}
+
+		/// <summary>
+		/// Builds a native WPF rendering of the footer template content.
+		/// This avoids MAUI LayoutPanel positioning issues in constrained flyout areas.
+		/// Looks for Picker controls with ItemsSource and creates a WPF ComboBox.
+		/// </summary>
+		FrameworkElement? BuildNativeFooter(View footerView)
+		{
+			try
+			{
+				var stack = new global::System.Windows.Controls.StackPanel
+				{
+					Margin = new WThickness(15),
+				};
+
+				WalkFooterView(footerView, stack);
+
+				if (stack.Children.Count > 0)
+					return stack;
+			}
+			catch { }
+			return null;
+		}
+
+		void WalkFooterView(Microsoft.Maui.Controls.Element element, global::System.Windows.Controls.StackPanel container)
+		{
+			if (element is Microsoft.Maui.Controls.Label label)
+			{
+				bool dark = IsDarkTheme();
+				container.Children.Add(new global::System.Windows.Controls.TextBlock
+				{
+					Text = label.Text ?? string.Empty,
+					FontSize = label.FontSize > 0 ? label.FontSize : 14,
+					Margin = new WThickness(0, 0, 0, 4),
+					Foreground = dark ? new WSolidColorBrush(WColor.FromRgb(200, 200, 200))
+									  : new WSolidColorBrush(WColor.FromRgb(60, 60, 60)),
+				});
+			}
+			else if (element is Microsoft.Maui.Controls.Picker picker)
+			{
+				var combo = new global::System.Windows.Controls.ComboBox
+				{
+					MinWidth = 100,
+					Margin = new WThickness(0, 2, 0, 0),
+				};
+
+				// Populate items
+				if (picker.ItemsSource != null)
+				{
+					foreach (var item in picker.ItemsSource)
+						combo.Items.Add(item?.ToString() ?? string.Empty);
+				}
+				else
+				{
+					for (int i = 0; i < picker.Items.Count; i++)
+						combo.Items.Add(picker.Items[i]);
+				}
+
+				// Set initial selection
+				if (picker.SelectedIndex >= 0 && picker.SelectedIndex < combo.Items.Count)
+					combo.SelectedIndex = picker.SelectedIndex;
+
+				// Two-way sync: ComboBox → MAUI Picker
+				combo.SelectionChanged += (s, e) =>
+				{
+					if (combo.SelectedIndex >= 0)
+						picker.SelectedIndex = combo.SelectedIndex;
+				};
+
+				// MAUI Picker → ComboBox (for programmatic changes)
+				picker.PropertyChanged += (s, e) =>
+				{
+					if (e.PropertyName == nameof(Microsoft.Maui.Controls.Picker.SelectedIndex))
+					{
+						if (combo.SelectedIndex != picker.SelectedIndex && picker.SelectedIndex >= 0)
+							combo.Dispatcher.InvokeAsync(() => combo.SelectedIndex = picker.SelectedIndex);
+					}
+				};
+
+				container.Children.Add(combo);
+			}
+
+			// Recurse into child elements
+			if (element is Microsoft.Maui.Controls.Layout layout)
+			{
+				foreach (var child in layout.Children)
+				{
+					if (child is Microsoft.Maui.Controls.Element childElement)
+						WalkFooterView(childElement, container);
+				}
+			}
+			else if (element is Microsoft.Maui.Controls.ContentView cv && cv.Content is Microsoft.Maui.Controls.Element cvContent)
+			{
+				WalkFooterView(cvContent, container);
+			}
 		}
 
 		public void ShowPage(FrameworkElement? content, string? title, bool showBack)

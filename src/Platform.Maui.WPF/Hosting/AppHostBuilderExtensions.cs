@@ -257,7 +257,10 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 					ue.IsEnabled = view.IsEnabled;
 			});
 
-			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Background), (handler, view, _) =>
+			// Shared background update logic for both Background and BackgroundColor properties.
+			// IView.Background includes BackgroundColor as fallback, but the mapper only fires
+			// when the matching property name changes. Styles often set BackgroundColor, so both must be mapped.
+			static void ApplyBackground(IViewHandler handler, IView view)
 			{
 				var brush = ConvertPaintToBrush(view.Background);
 				if (brush != null)
@@ -267,7 +270,12 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 					else if (handler.PlatformView is System.Windows.Controls.Panel panel)
 						panel.Background = brush;
 				}
-			});
+			}
+
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Background), (handler, view, _) =>
+				ApplyBackground(handler, view));
+			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("BackgroundColor", (handler, view, _) =>
+				ApplyBackground(handler, view));
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Margin), (handler, view, _) =>
 			{

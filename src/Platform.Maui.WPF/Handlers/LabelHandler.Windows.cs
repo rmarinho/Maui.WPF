@@ -28,6 +28,15 @@ namespace Microsoft.Maui.Handlers.WPF
 			var brush = ToBrush(label.TextColor);
 			if (brush != null)
 				handler.PlatformView.Foreground = brush;
+			else
+			{
+				// Apply theme-appropriate default when no explicit TextColor
+				var app = Microsoft.Maui.Controls.Application.Current;
+				bool dark = app?.RequestedTheme == AppTheme.Dark;
+				handler.PlatformView.Foreground = dark
+					? new WBrush(WColor.FromRgb(255, 255, 255))
+					: new WBrush(WColor.FromRgb(26, 26, 26));
+			}
 		}
 
 		public static void MapFont(LabelHandler handler, ILabel label)
