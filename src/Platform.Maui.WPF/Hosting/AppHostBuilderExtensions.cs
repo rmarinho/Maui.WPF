@@ -265,10 +265,26 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 				var brush = ConvertPaintToBrush(view.Background);
 				if (brush != null)
 				{
-					if (handler.PlatformView is System.Windows.Controls.Control control)
-						control.Background = brush;
-					else if (handler.PlatformView is System.Windows.Controls.Panel panel)
-						panel.Background = brush;
+					if (handler.PlatformView is System.Windows.UIElement element &&
+						!element.Dispatcher.CheckAccess())
+					{
+						var frozenBrush = brush;
+						frozenBrush.Freeze();
+						element.Dispatcher.BeginInvoke(() =>
+						{
+							if (element is System.Windows.Controls.Control c)
+								c.Background = frozenBrush;
+							else if (element is System.Windows.Controls.Panel p)
+								p.Background = frozenBrush;
+						});
+					}
+					else
+					{
+						if (handler.PlatformView is System.Windows.Controls.Control control)
+							control.Background = brush;
+						else if (handler.PlatformView is System.Windows.Controls.Panel panel)
+							panel.Background = brush;
+					}
 				}
 			}
 
