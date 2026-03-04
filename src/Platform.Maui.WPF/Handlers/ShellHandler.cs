@@ -85,7 +85,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			_flyoutFooterHost = new global::System.Windows.Controls.ContentControl
 			{
 				HorizontalContentAlignment = WHorizontalAlignment.Stretch,
-				VerticalAlignment = WVerticalAlignment.Bottom,
+				VerticalContentAlignment = WVerticalAlignment.Stretch,
 			};
 			SetRow(_flyoutFooterHost, 2);
 			_flyoutPanel.Children.Add(_flyoutFooterHost);
@@ -185,14 +185,41 @@ namespace Microsoft.Maui.Handlers.WPF
 			_flyoutPanel.Background = dark
 				? new WSolidColorBrush(WColor.FromRgb(30, 30, 30))
 				: new WSolidColorBrush(WColor.FromRgb(240, 240, 240));
+
+			// Update fallback label colors in flyout items
+			var fg = dark
+				? new WSolidColorBrush(WColor.FromRgb(255, 255, 255))
+				: new WSolidColorBrush(WColor.FromRgb(0, 0, 0));
+			foreach (var child in _flyoutItems.Children)
+			{
+				if (child is WButton btn && btn.Content is WGrid g)
+				{
+					foreach (var gc in g.Children)
+					{
+						if (gc is global::System.Windows.Controls.TextBlock tb)
+							tb.Foreground = fg;
+					}
+				}
+			}
 		}
 
 		void UpdateToolbarTheme()
 		{
 			bool dark = IsDarkTheme();
-			_toolbar.Background = dark
+			var bg = dark
 				? new WSolidColorBrush(WColor.FromRgb(30, 30, 30))
 				: new WSolidColorBrush(WColor.FromRgb(240, 240, 240));
+			var fg = dark
+				? new WSolidColorBrush(WColor.FromRgb(255, 255, 255))
+				: new WSolidColorBrush(WColor.FromRgb(0, 0, 0));
+			_toolbar.Background = bg;
+			_titleLabel.Foreground = fg;
+			_hamburgerButton.Foreground = fg;
+			_hamburgerButton.Background = global::System.Windows.Media.Brushes.Transparent;
+			_hamburgerButton.BorderThickness = new WThickness(0);
+			_backButton.Foreground = fg;
+			_backButton.Background = global::System.Windows.Media.Brushes.Transparent;
+			_backButton.BorderThickness = new WThickness(0);
 		}
 
 		/// <summary>
@@ -240,6 +267,11 @@ namespace Microsoft.Maui.Handlers.WPF
 		public void SetFlyoutBackground(WBrush? brush)
 		{
 			if (brush != null) _flyoutPanel.Background = brush;
+		}
+
+		public void SetFlyoutWidth(double width)
+		{
+			_flyoutPanel.Width = width;
 		}
 
 		public void SetBarBackground(WBrush? brush)
@@ -297,6 +329,10 @@ namespace Microsoft.Maui.Handlers.WPF
 					{
 						footerView.BindingContext = shell.FlyoutFooter ?? shell.BindingContext;
 						var platformFooter = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)footerView, MauiContext);
+						if (platformFooter is FrameworkElement fe)
+						{
+							fe.MinHeight = 80; // Ensure footer is visible
+						}
 						_flyoutFooterHost.Content = platformFooter;
 					}
 				}
@@ -439,21 +475,20 @@ namespace Microsoft.Maui.Handlers.WPF
 				{
 					var fileName = fileSource.File;
 					if (string.IsNullOrEmpty(fileName)) return;
-					var uri = new Uri(fileName, UriKind.RelativeOrAbsolute);
-					if (!uri.IsAbsoluteUri)
+					var resolvedPath = ImageHandler.ResolveImagePath(fileName);
+					if (resolvedPath != null)
 					{
-						var appDir = AppDomain.CurrentDomain.BaseDirectory;
-						var fullPath = System.IO.Path.Combine(appDir, fileName);
-						if (System.IO.File.Exists(fullPath))
-							uri = new Uri(fullPath, UriKind.Absolute);
-						else
+						if (resolvedPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
 						{
-							var resPath = System.IO.Path.Combine(appDir, "Resources", "Images", fileName);
-							if (System.IO.File.Exists(resPath))
-								uri = new Uri(resPath, UriKind.Absolute);
+							var svgSource = ImageHandler.RenderSvgToBitmap(resolvedPath, 35, 35);
+							if (svgSource != null) { img.Source = svgSource; return; }
 						}
+						img.Source = new global::System.Windows.Media.Imaging.BitmapImage(new Uri(resolvedPath, UriKind.Absolute));
 					}
-					img.Source = new global::System.Windows.Media.Imaging.BitmapImage(uri);
+					else
+					{
+						img.Source = new global::System.Windows.Media.Imaging.BitmapImage(new Uri(fileName, UriKind.RelativeOrAbsolute));
+					}
 				}
 				else if (source is Microsoft.Maui.Controls.FontImageSource fontSource)
 				{
@@ -516,6 +551,7 @@ namespace Microsoft.Maui.Handlers.WPF
 				[nameof(Shell.FlyoutBehavior)] = MapFlyoutBehavior,
 				[nameof(Shell.FlyoutBackgroundColor)] = MapFlyoutBackground,
 				[nameof(Shell.FlyoutBackground)] = MapFlyoutBackgroundBrush,
+				[nameof(Shell.FlyoutWidth)] = MapFlyoutWidth,
 				[nameof(Shell.BackgroundColor)] = MapShellBackground,
 				[nameof(Shell.Items)] = MapItems,
 				[nameof(Shell.CurrentItem)] = MapCurrentItem,
@@ -553,8 +589,18 @@ namespace Microsoft.Maui.Handlers.WPF
 					MapFlyoutBackgroundBrush(this, VirtualView);
 					MapShellBackground(this, VirtualView);
 
+					// Apply FlyoutBehavior (OnIdiom should have resolved by now)
+					MapFlyoutBehavior(this, VirtualView);
+
+					// Apply FlyoutWidth if set
+					if (VirtualView.FlyoutWidth > 0)
+						platformView.SetFlyoutWidth(VirtualView.FlyoutWidth);
+
 					ShowCurrentPage();
 				}
+
+				// Subscribe to theme changes to update Shell chrome
+				Platform.WPF.ThemeManager.ThemeChanged += OnThemeChanged;
 			}
 		}
 
@@ -566,7 +612,18 @@ namespace Microsoft.Maui.Handlers.WPF
 				VirtualView.Navigating -= OnShellNavigating;
 				VirtualView.PropertyChanged -= OnShellPropertyChanged;
 			}
+			Platform.WPF.ThemeManager.ThemeChanged -= OnThemeChanged;
 			base.DisconnectHandler(platformView);
+		}
+
+		void OnThemeChanged(AppTheme theme)
+		{
+			PlatformView?.Dispatcher.InvokeAsync(() =>
+			{
+				PlatformView?.UpdateTheme();
+				// Re-show current page to pick up AppThemeBinding changes
+				ShowCurrentPage();
+			});
 		}
 
 		void OnShellNavigating(object? sender, ShellNavigatingEventArgs e)
@@ -585,6 +642,22 @@ namespace Microsoft.Maui.Handlers.WPF
 			{
 				PlatformView?.Dispatcher.InvokeAsync(() => ShowCurrentPage(),
 					System.Windows.Threading.DispatcherPriority.Background);
+			}
+			else if (e.PropertyName == nameof(Shell.FlyoutBehavior))
+			{
+				PlatformView?.Dispatcher.InvokeAsync(() =>
+					PlatformView?.SetFlyoutBehavior(VirtualView!.FlyoutBehavior));
+			}
+			else if (e.PropertyName == nameof(Shell.FlyoutWidth))
+			{
+				if (VirtualView != null && VirtualView.FlyoutWidth > 0)
+					PlatformView?.Dispatcher.InvokeAsync(() =>
+						PlatformView?.SetFlyoutWidth(VirtualView.FlyoutWidth));
+			}
+			else if (e.PropertyName == nameof(Shell.FlyoutBackgroundColor))
+			{
+				if (VirtualView != null)
+					MapFlyoutBackground(this, VirtualView);
 			}
 		}
 
@@ -674,6 +747,12 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		static void MapFlyoutBehavior(ShellHandler handler, Shell shell)
 			=> handler.PlatformView.SetFlyoutBehavior(shell.FlyoutBehavior);
+
+		static void MapFlyoutWidth(ShellHandler handler, Shell shell)
+		{
+			if (shell.FlyoutWidth > 0)
+				handler.PlatformView.SetFlyoutWidth(shell.FlyoutWidth);
+		}
 
 		static void MapFlyoutBackground(ShellHandler handler, Shell shell)
 		{

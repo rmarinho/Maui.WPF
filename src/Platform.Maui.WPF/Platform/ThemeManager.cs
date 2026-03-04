@@ -12,6 +12,11 @@ namespace Microsoft.Maui.Platform.WPF
 	{
 		static AppTheme _currentTheme = AppTheme.Unspecified;
 
+		/// <summary>
+		/// Fired when theme changes (system or user). Shell chrome subscribes to this.
+		/// </summary>
+		public static event Action<AppTheme>? ThemeChanged;
+
 		public static AppTheme GetCurrentTheme()
 		{
 			try
@@ -39,6 +44,7 @@ namespace Microsoft.Maui.Platform.WPF
 		/// <summary>
 		/// Must be called after the MAUI Application is created to set the initial PlatformAppTheme.
 		/// This enables AppThemeBinding to resolve Light/Dark values correctly.
+		/// Also hooks into Application.RequestedThemeChanged to detect UserAppTheme changes.
 		/// </summary>
 		public static void ApplyThemeToApplication()
 		{
@@ -47,6 +53,37 @@ namespace Microsoft.Maui.Platform.WPF
 
 			_currentTheme = GetCurrentTheme();
 			SetPlatformAppTheme(app, _currentTheme);
+
+			// Subscribe to RequestedThemeChanged to catch UserAppTheme changes from the app
+			app.RequestedThemeChanged += OnRequestedThemeChanged;
+		}
+
+		static void OnRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
+		{
+			_currentTheme = e.RequestedTheme;
+			ThemeChanged?.Invoke(e.RequestedTheme);
+		}
+
+		/// <summary>
+		/// Called when the user sets UserAppTheme from application code.
+		/// Updates PlatformAppTheme to match and triggers theme re-evaluation.
+		/// </summary>
+		public static void SetUserTheme(AppTheme theme)
+		{
+			var app = Microsoft.Maui.Controls.Application.Current;
+			if (app == null) return;
+
+			if (theme == AppTheme.Unspecified)
+			{
+				// Reset to system theme
+				_currentTheme = GetCurrentTheme();
+				SetPlatformAppTheme(app, _currentTheme);
+			}
+			else
+			{
+				_currentTheme = theme;
+				SetPlatformAppTheme(app, theme);
+			}
 		}
 
 		static void SetPlatformAppTheme(Microsoft.Maui.Controls.Application app, AppTheme theme)
@@ -74,6 +111,7 @@ namespace Microsoft.Maui.Platform.WPF
 					{
 						SetPlatformAppTheme(app, newTheme);
 					}
+					ThemeChanged?.Invoke(newTheme);
 				}
 			}
 		}
@@ -81,6 +119,9 @@ namespace Microsoft.Maui.Platform.WPF
 		public static void Shutdown()
 		{
 			SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+			var app = Microsoft.Maui.Controls.Application.Current;
+			if (app != null)
+				app.RequestedThemeChanged -= OnRequestedThemeChanged;
 		}
 	}
 }
