@@ -306,8 +306,27 @@ namespace Microsoft.Maui.Handlers.WPF
 					if (headerContent is View headerView)
 					{
 						headerView.BindingContext = shell.FlyoutHeader ?? shell.BindingContext;
-						var platformHeader = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)headerView, MauiContext);
-						_flyoutHeaderHost.Content = platformHeader;
+
+						// Build native WPF header to avoid MAUI LayoutPanel sizing issues.
+						// The header template is typically a Grid with an Image centered.
+						var nativeHeader = BuildNativeHeader(headerView);
+						if (nativeHeader != null)
+						{
+							_flyoutHeaderHost.Content = nativeHeader;
+						}
+						else
+						{
+							var platformHeader = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)headerView, MauiContext);
+							if (platformHeader is FrameworkElement fe)
+							{
+								// Force explicit height from the view's RowDefinitions or HeightRequest
+								double h = headerView.HeightRequest;
+								if (double.IsNaN(h) || h <= 0)
+									h = 120; // default flyout header height
+								fe.Height = h;
+							}
+							_flyoutHeaderHost.Content = platformHeader;
+						}
 					}
 				}
 				catch { }
@@ -543,6 +562,103 @@ namespace Microsoft.Maui.Handlers.WPF
 				}
 			}
 			catch { }
+		}
+
+		/// <summary>
+		/// Builds a native WPF rendering of the flyout header template.
+		/// MAUI LayoutPanel inside a WPF Auto-height ContentControl gets ∞ bounds,
+		/// causing the header image to render at 0x0 or broken coordinates.
+		/// This walks the MAUI view tree and creates native WPF Image controls.
+		/// </summary>
+		FrameworkElement? BuildNativeHeader(View headerView)
+		{
+			try
+			{
+				// Determine header height from the view (RowDefinitions="120" in the XAML)
+				double headerHeight = 120;
+				if (headerView.HeightRequest > 0)
+					headerHeight = headerView.HeightRequest;
+				else if (headerView is Microsoft.Maui.Controls.Grid grid && grid.RowDefinitions.Count > 0)
+				{
+					double total = 0;
+					foreach (var rd in grid.RowDefinitions)
+					{
+						if (rd.Height.IsAbsolute)
+							total += rd.Height.Value;
+					}
+					if (total > 0) headerHeight = total;
+				}
+
+				var container = new WGrid
+				{
+					Height = headerHeight,
+					HorizontalAlignment = WHorizontalAlignment.Stretch,
+				};
+
+				// Walk children to find images
+				WalkHeaderView(headerView, container);
+
+				if (container.Children.Count > 0)
+					return container;
+			}
+			catch { }
+			return null;
+		}
+
+		void WalkHeaderView(Microsoft.Maui.Controls.Element element, WGrid container)
+		{
+			if (element is Microsoft.Maui.Controls.Image img)
+			{
+				var wpfImage = new global::System.Windows.Controls.Image
+				{
+					HorizontalAlignment = WHorizontalAlignment.Center,
+					VerticalAlignment = WVerticalAlignment.Center,
+					Stretch = System.Windows.Media.Stretch.Uniform,
+				};
+				if (img.WidthRequest > 0) wpfImage.Width = img.WidthRequest;
+				if (img.HeightRequest > 0) wpfImage.Height = img.HeightRequest;
+
+				// Resolve image source
+				if (img.Source is Microsoft.Maui.Controls.FileImageSource fis && !string.IsNullOrEmpty(fis.File))
+				{
+					var resolvedPath = ImageHandler.ResolveImagePath(fis.File);
+					if (resolvedPath != null)
+					{
+						try
+						{
+							if (resolvedPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+							{
+								var svgSource = ImageHandler.RenderSvgToBitmap(resolvedPath);
+								if (svgSource != null)
+									wpfImage.Source = svgSource;
+							}
+							else
+							{
+								wpfImage.Source = new System.Windows.Media.Imaging.BitmapImage(
+									new Uri(resolvedPath, UriKind.Absolute));
+							}
+						}
+						catch { }
+					}
+				}
+
+				container.Children.Add(wpfImage);
+				return;
+			}
+
+			// Recurse into child elements
+			if (element is Microsoft.Maui.Controls.Layout layout)
+			{
+				foreach (var child in layout.Children)
+				{
+					if (child is Microsoft.Maui.Controls.Element childElement)
+						WalkHeaderView(childElement, container);
+				}
+			}
+			else if (element is Microsoft.Maui.Controls.ContentView cv && cv.Content is Microsoft.Maui.Controls.Element cvContent)
+			{
+				WalkHeaderView(cvContent, container);
+			}
 		}
 
 		/// <summary>

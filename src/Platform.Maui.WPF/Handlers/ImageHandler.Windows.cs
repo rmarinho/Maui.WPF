@@ -123,7 +123,6 @@ namespace Microsoft.Maui.Handlers.WPF
 						}
 						else
 						{
-							// Last resort: try as URI
 							handler.PlatformView.Source = new BitmapImage(new Uri(fileName, UriKind.RelativeOrAbsolute));
 						}
 					}
