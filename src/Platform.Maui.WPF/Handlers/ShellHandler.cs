@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
@@ -33,6 +34,8 @@ namespace Microsoft.Maui.Handlers.WPF
 	{
 		readonly WGrid _flyoutPanel;
 		readonly global::System.Windows.Controls.StackPanel _flyoutItems;
+		readonly global::System.Windows.Controls.ContentControl _flyoutHeaderHost;
+		readonly global::System.Windows.Controls.ContentControl _flyoutFooterHost;
 		readonly global::System.Windows.Controls.ContentControl _contentArea;
 		readonly global::System.Windows.Controls.TabControl _tabControl;
 		readonly WButton _hamburgerButton;
@@ -40,40 +43,53 @@ namespace Microsoft.Maui.Handlers.WPF
 		readonly global::System.Windows.Controls.TextBlock _titleLabel;
 		readonly WBorder _flyoutOverlay;
 		readonly global::System.Windows.Controls.DockPanel _toolbar;
+		readonly global::System.Windows.Controls.StackPanel _toolbarItemsPanel;
 		bool _flyoutOpen;
+		FlyoutBehavior _currentBehavior = FlyoutBehavior.Flyout;
 
 		public Action<ShellItem>? OnShellItemSelected { get; set; }
 		public Action? OnBackButtonClicked { get; set; }
+		public IMauiContext? MauiContext { get; set; }
 
 		public ShellContainerView()
 		{
 			ColumnDefinitions.Add(new WColumnDefinition { Width = WGridLength.Auto });
 			ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(1, WGridUnitType.Star) });
 
-			// Flyout panel - use Shell.FlyoutBackgroundColor mapping, default neutral
+			// Flyout panel with header / scrollable items / footer
 			_flyoutPanel = new WGrid
 			{
 				Width = 250,
 				Visibility = WVisibility.Collapsed,
 			};
-			UpdateFlyoutTheme();
-			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(50) });
-			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) });
+			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = WGridLength.Auto }); // header
+			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) }); // items
+			_flyoutPanel.RowDefinitions.Add(new WRowDefinition { Height = WGridLength.Auto }); // footer
 
-			var headerPanel = new global::System.Windows.Controls.DockPanel { Margin = new WThickness(12, 8, 8, 8) };
-			var closeBtn = new WButton { Content = "✕", Width = 30, Height = 30, HorizontalAlignment = WHorizontalAlignment.Right };
-			closeBtn.Click += (s, e) => ToggleFlyout(false);
-			global::System.Windows.Controls.DockPanel.SetDock(closeBtn, global::System.Windows.Controls.Dock.Right);
-			headerPanel.Children.Add(closeBtn);
-			headerPanel.Children.Add(new global::System.Windows.Controls.TextBlock { Text = "Menu", FontSize = 16, Foreground = global::System.Windows.Media.Brushes.White, VerticalAlignment = WVerticalAlignment.Center });
-			SetRow(headerPanel, 0);
-			_flyoutPanel.Children.Add(headerPanel);
+			_flyoutHeaderHost = new global::System.Windows.Controls.ContentControl
+			{
+				HorizontalContentAlignment = WHorizontalAlignment.Stretch,
+			};
+			SetRow(_flyoutHeaderHost, 0);
+			_flyoutPanel.Children.Add(_flyoutHeaderHost);
 
-			var scrollViewer = new global::System.Windows.Controls.ScrollViewer { VerticalScrollBarVisibility = global::System.Windows.Controls.ScrollBarVisibility.Auto };
+			var scrollViewer = new global::System.Windows.Controls.ScrollViewer
+			{
+				VerticalScrollBarVisibility = global::System.Windows.Controls.ScrollBarVisibility.Auto,
+			};
 			_flyoutItems = new global::System.Windows.Controls.StackPanel();
 			scrollViewer.Content = _flyoutItems;
 			SetRow(scrollViewer, 1);
 			_flyoutPanel.Children.Add(scrollViewer);
+
+			_flyoutFooterHost = new global::System.Windows.Controls.ContentControl
+			{
+				HorizontalContentAlignment = WHorizontalAlignment.Stretch,
+				VerticalAlignment = WVerticalAlignment.Bottom,
+			};
+			SetRow(_flyoutFooterHost, 2);
+			_flyoutPanel.Children.Add(_flyoutFooterHost);
+
 			SetColumn(_flyoutPanel, 0);
 
 			_flyoutOverlay = new WBorder
@@ -89,12 +105,11 @@ namespace Microsoft.Maui.Handlers.WPF
 			mainGrid.RowDefinitions.Add(new WRowDefinition { Height = WGridLength.Auto });
 			mainGrid.RowDefinitions.Add(new WRowDefinition { Height = new WGridLength(1, WGridUnitType.Star) });
 
-			// Toolbar - background set by Shell.BackgroundColor mapping
+			// Toolbar
 			_toolbar = new global::System.Windows.Controls.DockPanel
 			{
 				Height = 44,
 			};
-			UpdateToolbarTheme();
 
 			_hamburgerButton = new WButton
 			{
@@ -115,6 +130,15 @@ namespace Microsoft.Maui.Handlers.WPF
 			_backButton.Click += (s, e) => OnBackButtonClicked?.Invoke();
 			global::System.Windows.Controls.DockPanel.SetDock(_backButton, global::System.Windows.Controls.Dock.Left);
 			_toolbar.Children.Add(_backButton);
+
+			// Toolbar items (right side)
+			_toolbarItemsPanel = new global::System.Windows.Controls.StackPanel
+			{
+				Orientation = global::System.Windows.Controls.Orientation.Horizontal,
+				HorizontalAlignment = WHorizontalAlignment.Right,
+			};
+			global::System.Windows.Controls.DockPanel.SetDock(_toolbarItemsPanel, global::System.Windows.Controls.Dock.Right);
+			_toolbar.Children.Add(_toolbarItemsPanel);
 
 			_titleLabel = new global::System.Windows.Controls.TextBlock
 			{
@@ -182,6 +206,8 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public void ToggleFlyout(bool open)
 		{
+			if (_currentBehavior == FlyoutBehavior.Locked)
+				return; // Locked flyout cannot be toggled
 			_flyoutOpen = open;
 			_flyoutPanel.Visibility = open ? WVisibility.Visible : WVisibility.Collapsed;
 			_flyoutOverlay.Visibility = open ? WVisibility.Visible : WVisibility.Collapsed;
@@ -189,18 +215,24 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public void SetFlyoutBehavior(FlyoutBehavior behavior)
 		{
+			_currentBehavior = behavior;
 			switch (behavior)
 			{
 				case FlyoutBehavior.Disabled:
 					_hamburgerButton.Visibility = WVisibility.Collapsed;
 					_flyoutPanel.Visibility = WVisibility.Collapsed;
+					_flyoutOpen = false;
 					break;
 				case FlyoutBehavior.Flyout:
 					_hamburgerButton.Visibility = WVisibility.Visible;
+					if (!_flyoutOpen)
+						_flyoutPanel.Visibility = WVisibility.Collapsed;
 					break;
 				case FlyoutBehavior.Locked:
 					_hamburgerButton.Visibility = WVisibility.Collapsed;
 					_flyoutPanel.Visibility = WVisibility.Visible;
+					_flyoutOverlay.Visibility = WVisibility.Collapsed;
+					_flyoutOpen = true;
 					break;
 			}
 		}
@@ -230,8 +262,50 @@ namespace Microsoft.Maui.Handlers.WPF
 			_flyoutItems.Children.Clear();
 			_tabControl.Items.Clear();
 
+			// Render FlyoutHeader template
+			if (shell.FlyoutHeaderTemplate != null && MauiContext != null)
+			{
+				try
+				{
+					var headerContent = shell.FlyoutHeaderTemplate.CreateContent();
+					if (headerContent is View headerView)
+					{
+						headerView.BindingContext = shell.FlyoutHeader ?? shell.BindingContext;
+						var platformHeader = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)headerView, MauiContext);
+						_flyoutHeaderHost.Content = platformHeader;
+					}
+				}
+				catch { }
+			}
+			else if (shell.FlyoutHeader is View headerFallback && MauiContext != null)
+			{
+				try
+				{
+					var platformHeader = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)headerFallback, MauiContext);
+					_flyoutHeaderHost.Content = platformHeader;
+				}
+				catch { }
+			}
+
+			// Render FlyoutFooter template
+			if (shell.FlyoutFooterTemplate != null && MauiContext != null)
+			{
+				try
+				{
+					var footerContent = shell.FlyoutFooterTemplate.CreateContent();
+					if (footerContent is View footerView)
+					{
+						footerView.BindingContext = shell.FlyoutFooter ?? shell.BindingContext;
+						var platformFooter = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)footerView, MauiContext);
+						_flyoutFooterHost.Content = platformFooter;
+					}
+				}
+				catch { }
+			}
+
 			bool hasFlyoutItems = false;
 			bool hasTabs = false;
+			var itemTemplate = shell.ItemTemplate;
 
 			foreach (var item in shell.Items)
 			{
@@ -239,20 +313,96 @@ namespace Microsoft.Maui.Handlers.WPF
 				{
 					hasFlyoutItems = true;
 					var capturedItem = item;
+
+					FrameworkElement itemElement;
+
+					// Try to use the Shell.ItemTemplate (CustomFlyoutItem)
+					if (itemTemplate != null && MauiContext != null)
+					{
+						try
+						{
+							var resolved = itemTemplate;
+							if (itemTemplate is Microsoft.Maui.Controls.DataTemplateSelector selector)
+								resolved = selector.SelectTemplate(item, shell);
+
+							var content = resolved?.CreateContent() as View;
+							if (content != null)
+							{
+								content.BindingContext = item;
+								var platformItem = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, MauiContext);
+								var container = new WBorder
+								{
+									Child = (System.Windows.UIElement)platformItem,
+									Cursor = global::System.Windows.Input.Cursors.Hand,
+									Background = global::System.Windows.Media.Brushes.Transparent,
+									Padding = new WThickness(0, 4, 0, 4),
+								};
+								container.MouseLeftButtonUp += (s, e) =>
+								{
+									OnShellItemSelected?.Invoke(capturedItem);
+									if (_currentBehavior != FlyoutBehavior.Locked)
+										ToggleFlyout(false);
+								};
+								itemElement = container;
+								_flyoutItems.Children.Add(itemElement);
+								continue;
+							}
+						}
+						catch { }
+					}
+
+					// Fallback: simple button with icon if available
 					var btn = new WButton
 					{
-						Content = item.Title ?? item.Route ?? "Item",
-						HorizontalContentAlignment = WHorizontalAlignment.Left,
-						Foreground = IsDarkTheme() ? global::System.Windows.Media.Brushes.White : new WSolidColorBrush(WColor.FromRgb(30, 30, 30)),
+						HorizontalContentAlignment = WHorizontalAlignment.Stretch,
 						Background = global::System.Windows.Media.Brushes.Transparent,
 						BorderThickness = new WThickness(0),
-						Padding = new WThickness(16, 12, 16, 12),
-						FontSize = 14, Tag = item,
+						Padding = new WThickness(0),
+						Tag = item,
+						Cursor = global::System.Windows.Input.Cursors.Hand,
 					};
+
+					var itemGrid = new WGrid();
+					itemGrid.ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(15) }); // spacer
+					itemGrid.ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(50) }); // icon
+					itemGrid.ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(1, WGridUnitType.Star) }); // text
+
+					// Try to render FlyoutIcon
+					var flyoutIcon = item.FlyoutIcon;
+					if (flyoutIcon != null && MauiContext != null)
+					{
+						try
+						{
+							var img = new global::System.Windows.Controls.Image
+							{
+								Width = 35, Height = 35,
+								Margin = new WThickness(5),
+								VerticalAlignment = WVerticalAlignment.Center,
+							};
+							SetIconSource(img, flyoutIcon, MauiContext);
+							SetColumn(img, 1);
+							itemGrid.Children.Add(img);
+						}
+						catch { }
+					}
+
+					var label = new global::System.Windows.Controls.TextBlock
+					{
+						Text = item.Title ?? item.Route ?? "Item",
+						FontSize = 14,
+						FontStyle = global::System.Windows.FontStyles.Italic,
+						VerticalAlignment = WVerticalAlignment.Center,
+						Margin = new WThickness(4, 8, 8, 8),
+					};
+					SetColumn(label, 2);
+					itemGrid.Children.Add(label);
+
+					btn.Content = itemGrid;
 					btn.Click += (s, e) =>
 					{
 						OnShellItemSelected?.Invoke(capturedItem);
-						ToggleFlyout(false);
+						if (_currentBehavior != FlyoutBehavior.Locked)
+							ToggleFlyout(false);
 					};
 					_flyoutItems.Children.Add(btn);
 				}
@@ -274,6 +424,78 @@ namespace Microsoft.Maui.Handlers.WPF
 				SetFlyoutBehavior(FlyoutBehavior.Disabled);
 
 			_tabControl.Visibility = hasTabs ? WVisibility.Visible : WVisibility.Collapsed;
+
+			// Apply theme after building items
+			UpdateFlyoutTheme();
+			UpdateToolbarTheme();
+		}
+
+		static void SetIconSource(global::System.Windows.Controls.Image img, Microsoft.Maui.Controls.ImageSource? source, IMauiContext mauiContext)
+		{
+			if (source == null) return;
+			try
+			{
+				if (source is Microsoft.Maui.Controls.FileImageSource fileSource)
+				{
+					var fileName = fileSource.File;
+					if (string.IsNullOrEmpty(fileName)) return;
+					var uri = new Uri(fileName, UriKind.RelativeOrAbsolute);
+					if (!uri.IsAbsoluteUri)
+					{
+						var appDir = AppDomain.CurrentDomain.BaseDirectory;
+						var fullPath = System.IO.Path.Combine(appDir, fileName);
+						if (System.IO.File.Exists(fullPath))
+							uri = new Uri(fullPath, UriKind.Absolute);
+						else
+						{
+							var resPath = System.IO.Path.Combine(appDir, "Resources", "Images", fileName);
+							if (System.IO.File.Exists(resPath))
+								uri = new Uri(resPath, UriKind.Absolute);
+						}
+					}
+					img.Source = new global::System.Windows.Media.Imaging.BitmapImage(uri);
+				}
+				else if (source is Microsoft.Maui.Controls.FontImageSource fontSource)
+				{
+					// Render font glyph as text in the image's parent
+					if (img.Parent is WGrid grid)
+					{
+						var col = GetColumn(img);
+						grid.Children.Remove(img);
+						var tb = new global::System.Windows.Controls.TextBlock
+						{
+							Text = fontSource.Glyph,
+							FontSize = fontSource.Size > 0 ? fontSource.Size : 16,
+							HorizontalAlignment = WHorizontalAlignment.Center,
+							VerticalAlignment = WVerticalAlignment.Center,
+							Margin = new WThickness(5),
+						};
+						if (fontSource.Color != null)
+						{
+							var c = fontSource.Color;
+							tb.Foreground = new WSolidColorBrush(WColor.FromArgb(
+								(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+								(byte)(c.Green * 255), (byte)(c.Blue * 255)));
+						}
+						if (!string.IsNullOrEmpty(fontSource.FontFamily))
+						{
+							try
+							{
+								var fontManager = mauiContext.Services.GetService<IFontManager>();
+								if (fontManager is Platform.WPF.WPFFontManager wpfFontManager)
+								{
+									var family = wpfFontManager.GetFontFamily(Microsoft.Maui.Font.OfSize(fontSource.FontFamily, fontSource.Size));
+									tb.FontFamily = family;
+								}
+							}
+							catch { }
+						}
+						SetColumn(tb, col);
+						grid.Children.Add(tb);
+					}
+				}
+			}
+			catch { }
 		}
 
 		public void ShowPage(FrameworkElement? content, string? title, bool showBack)
@@ -293,6 +515,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			{
 				[nameof(Shell.FlyoutBehavior)] = MapFlyoutBehavior,
 				[nameof(Shell.FlyoutBackgroundColor)] = MapFlyoutBackground,
+				[nameof(Shell.FlyoutBackground)] = MapFlyoutBackgroundBrush,
 				[nameof(Shell.BackgroundColor)] = MapShellBackground,
 				[nameof(Shell.Items)] = MapItems,
 				[nameof(Shell.CurrentItem)] = MapCurrentItem,
@@ -308,6 +531,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			var container = new ShellContainerView();
 			container.OnShellItemSelected = OnShellItemSelected;
 			container.OnBackButtonClicked = OnBackButtonClicked;
+			container.MauiContext = MauiContext;
 			return container;
 		}
 
@@ -321,7 +545,14 @@ namespace Microsoft.Maui.Handlers.WPF
 				VirtualView.PropertyChanged += OnShellPropertyChanged;
 				if (MauiContext != null)
 				{
+					platformView.MauiContext = MauiContext;
 					platformView.BuildFlyoutItems(VirtualView);
+					
+					// Ensure theme-related properties are applied after items built
+					MapFlyoutBackground(this, VirtualView);
+					MapFlyoutBackgroundBrush(this, VirtualView);
+					MapShellBackground(this, VirtualView);
+
 					ShowCurrentPage();
 				}
 			}
@@ -452,6 +683,30 @@ namespace Microsoft.Maui.Handlers.WPF
 				handler.PlatformView.SetFlyoutBackground(new WSolidColorBrush(WColor.FromArgb(
 					(byte)(c.Alpha * 255), (byte)(c.Red * 255),
 					(byte)(c.Green * 255), (byte)(c.Blue * 255))));
+			}
+		}
+
+		static void MapFlyoutBackgroundBrush(ShellHandler handler, Shell shell)
+		{
+			var brush = shell.FlyoutBackground;
+			if (brush == null) return;
+
+			Microsoft.Maui.Graphics.Color? color = null;
+			if (brush is Microsoft.Maui.Controls.SolidColorBrush scb)
+				color = scb.Color;
+			else
+			{
+				// ImmutableBrush or other types - try to get color via reflection
+				var colorProp = brush.GetType().GetProperty("Color");
+				if (colorProp?.GetValue(brush) is Microsoft.Maui.Graphics.Color c)
+					color = c;
+			}
+
+			if (color != null)
+			{
+				handler.PlatformView.SetFlyoutBackground(new WSolidColorBrush(WColor.FromArgb(
+					(byte)(color.Alpha * 255), (byte)(color.Red * 255),
+					(byte)(color.Green * 255), (byte)(color.Blue * 255))));
 			}
 		}
 
