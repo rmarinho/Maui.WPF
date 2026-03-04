@@ -218,14 +218,39 @@ namespace Microsoft.Maui.Handlers.WPF
 			}
 		}
 
+		Action<ApplicationModel.AppTheme>? _themeChangedHandler;
+
+		protected override void ConnectHandler(FrameworkElement platformView)
+		{
+			base.ConnectHandler(platformView);
+			_themeChangedHandler = _ => PlatformView?.Dispatcher.InvokeAsync(RefreshItems);
+			Platform.WPF.ThemeManager.ThemeChanged += _themeChangedHandler;
+		}
+
 		protected override void DisconnectHandler(FrameworkElement platformView)
 		{
+			if (_themeChangedHandler != null)
+				Platform.WPF.ThemeManager.ThemeChanged -= _themeChangedHandler;
 			if (_listBox != null)
 			{
 				_listBox.SelectionChanged -= OnSelectionChanged;
 				_listBox.SizeChanged -= OnListBoxSizeChanged;
 			}
 			base.DisconnectHandler(platformView);
+		}
+
+		/// <summary>
+		/// Force re-materialization of all items by resetting ItemsSource.
+		/// This causes PrepareContainerForItemOverride to run again with fresh MAUI views
+		/// that pick up the new AppThemeBinding values.
+		/// </summary>
+		void RefreshItems()
+		{
+			if (_listBox == null || VirtualView == null) return;
+			var source = _listBox.ItemsSource;
+			if (source == null) return;
+			_listBox.ItemsSource = null;
+			_listBox.ItemsSource = source;
 		}
 	}
 
