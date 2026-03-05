@@ -176,85 +176,100 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			return builder;
 		}
 
+		/// <summary>
+		/// Execute an action on the WPF UI thread. If already on the UI thread, runs inline.
+		/// Otherwise, marshals to the dispatcher. This prevents cross-thread exceptions
+		/// when MAUI property mappers fire from background threads (animations, async bindings).
+		/// </summary>
+		static void RunOnUI(IViewHandler handler, Action<System.Windows.FrameworkElement> action)
+		{
+			if (handler.PlatformView is not System.Windows.FrameworkElement fe) return;
+			if (fe.Dispatcher.CheckAccess())
+				action(fe);
+			else
+				fe.Dispatcher.BeginInvoke(action, fe);
+		}
+
+		static void RunOnUIElement(IViewHandler handler, Action<System.Windows.UIElement> action)
+		{
+			if (handler.PlatformView is not System.Windows.UIElement ue) return;
+			if (ue.Dispatcher.CheckAccess())
+				action(ue);
+			else
+				ue.Dispatcher.BeginInvoke(action, ue);
+		}
+
 		internal static MauiAppBuilder RemapForControls(this MauiAppBuilder builder)
 		{
 			// Wire up InvalidateMeasure so MAUI property changes propagate to WPF layout
 			Microsoft.Maui.Handlers.ViewHandler.ViewCommandMapper.ModifyMapping(nameof(IView.InvalidateMeasure), (handler, view, args, _) =>
 			{
-				(handler.PlatformView as System.Windows.UIElement)?.InvalidateMeasure();
+				RunOnUIElement(handler, ue => ue.InvalidateMeasure());
 			});
 
 			// Override base ViewMapper entries that target WinUI types
 			// so they work with WPF FrameworkElement instead
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Width), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-				{
-					double w = view.Width;
-					if (w >= 0)
-						fe.Width = w;
-					// Don't set NaN — preserve default from CreatePlatformView
-				}
+				double w = view.Width;
+				RunOnUI(handler, fe => { if (w >= 0) fe.Width = w; });
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Height), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-				{
-					double h = view.Height;
-					if (h >= 0)
-						fe.Height = h;
-					// Don't set NaN — preserve default from CreatePlatformView
-				}
+				double h = view.Height;
+				RunOnUI(handler, fe => { if (h >= 0) fe.Height = h; });
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MinimumWidth), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MinimumWidth) && view.MinimumWidth >= 0)
-					fe.MinWidth = view.MinimumWidth;
+				double v = view.MinimumWidth;
+				if (!double.IsNaN(v) && v >= 0)
+					RunOnUI(handler, fe => fe.MinWidth = v);
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MinimumHeight), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MinimumHeight) && view.MinimumHeight >= 0)
-					fe.MinHeight = view.MinimumHeight;
+				double v = view.MinimumHeight;
+				if (!double.IsNaN(v) && v >= 0)
+					RunOnUI(handler, fe => fe.MinHeight = v);
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MaximumWidth), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MaximumWidth) && !double.IsInfinity(view.MaximumWidth))
-					fe.MaxWidth = view.MaximumWidth;
+				double v = view.MaximumWidth;
+				if (!double.IsNaN(v) && !double.IsInfinity(v))
+					RunOnUI(handler, fe => fe.MaxWidth = v);
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.MaximumHeight), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe && !double.IsNaN(view.MaximumHeight) && !double.IsInfinity(view.MaximumHeight))
-					fe.MaxHeight = view.MaximumHeight;
+				double v = view.MaximumHeight;
+				if (!double.IsNaN(v) && !double.IsInfinity(v))
+					RunOnUI(handler, fe => fe.MaxHeight = v);
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Opacity), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue)
-					ue.Opacity = view.Opacity;
+				double o = view.Opacity;
+				RunOnUIElement(handler, ue => ue.Opacity = o);
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Visibility), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue)
+				var vis = view.Visibility switch
 				{
-					ue.Visibility = view.Visibility switch
-					{
-						Visibility.Collapsed => System.Windows.Visibility.Collapsed,
-						Visibility.Hidden => System.Windows.Visibility.Hidden,
-						_ => System.Windows.Visibility.Visible,
-					};
-				}
+					Visibility.Collapsed => System.Windows.Visibility.Collapsed,
+					Visibility.Hidden => System.Windows.Visibility.Hidden,
+					_ => System.Windows.Visibility.Visible,
+				};
+				RunOnUIElement(handler, ue => ue.Visibility = vis);
 			});
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.IsEnabled), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue)
-					ue.IsEnabled = view.IsEnabled;
+				bool enabled = view.IsEnabled;
+				RunOnUIElement(handler, ue => ue.IsEnabled = enabled);
 			});
 
 			// Shared background update logic for both Background and BackgroundColor properties.
@@ -263,29 +278,24 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			static void ApplyBackground(IViewHandler handler, IView view)
 			{
 				var brush = ConvertPaintToBrush(view.Background);
-				if (brush != null)
+				if (brush == null) return;
+				if (handler.PlatformView is not System.Windows.UIElement element) return;
+
+				if (!element.Dispatcher.CheckAccess())
+					brush.Freeze();
+
+				void Apply()
 				{
-					if (handler.PlatformView is System.Windows.UIElement element &&
-						!element.Dispatcher.CheckAccess())
-					{
-						var frozenBrush = brush;
-						frozenBrush.Freeze();
-						element.Dispatcher.BeginInvoke(() =>
-						{
-							if (element is System.Windows.Controls.Control c)
-								c.Background = frozenBrush;
-							else if (element is System.Windows.Controls.Panel p)
-								p.Background = frozenBrush;
-						});
-					}
-					else
-					{
-						if (handler.PlatformView is System.Windows.Controls.Control control)
-							control.Background = brush;
-						else if (handler.PlatformView is System.Windows.Controls.Panel panel)
-							panel.Background = brush;
-					}
+					if (element is System.Windows.Controls.Control c)
+						c.Background = brush;
+					else if (element is System.Windows.Controls.Panel p)
+						p.Background = brush;
 				}
+
+				if (element.Dispatcher.CheckAccess())
+					Apply();
+				else
+					element.Dispatcher.BeginInvoke((Action)Apply);
 			}
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Background), (handler, view, _) =>
@@ -295,181 +305,151 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Margin), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-				{
-					var m = view.Margin;
-					fe.Margin = new System.Windows.Thickness(m.Left, m.Top, m.Right, m.Bottom);
-				}
+				var m = view.Margin;
+				var thickness = new System.Windows.Thickness(m.Left, m.Top, m.Right, m.Bottom);
+				RunOnUI(handler, fe => fe.Margin = thickness);
 			});
 
 			// Transforms — TranslationX/Y, Rotation, Scale, Anchor
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.TranslationX), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.TranslationY), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Rotation), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.RotationX), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.RotationY), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Scale), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ScaleX), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ScaleY), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AnchorX), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AnchorY), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-					UpdateTransformGroup(fe, view);
+				RunOnUI(handler, fe => UpdateTransformGroup(fe, view));
 			});
 
 			// Shadow → DropShadowEffect
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Shadow), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue)
+				var shadow = view.Shadow;
+				System.Windows.Media.Effects.DropShadowEffect? effect = null;
+				if (shadow != null && shadow.Paint is SolidPaint sp && sp.Color != null)
 				{
-					var shadow = view.Shadow;
-					if (shadow != null && shadow.Paint is SolidPaint sp && sp.Color != null)
+					var c = sp.Color;
+					effect = new System.Windows.Media.Effects.DropShadowEffect
 					{
-						var c = sp.Color;
-						ue.Effect = new System.Windows.Media.Effects.DropShadowEffect
-						{
-							Color = System.Windows.Media.Color.FromArgb(
-								(byte)(c.Alpha * 255), (byte)(c.Red * 255),
-								(byte)(c.Green * 255), (byte)(c.Blue * 255)),
-							BlurRadius = Math.Abs(shadow.Radius),
-							ShadowDepth = Math.Sqrt(shadow.Offset.X * shadow.Offset.X + shadow.Offset.Y * shadow.Offset.Y),
-							Direction = Math.Atan2(-shadow.Offset.Y, shadow.Offset.X) * 180.0 / Math.PI,
-							Opacity = shadow.Opacity
-						};
-					}
-					else
-					{
-						ue.Effect = null;
-					}
+						Color = System.Windows.Media.Color.FromArgb(
+							(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+							(byte)(c.Green * 255), (byte)(c.Blue * 255)),
+						BlurRadius = Math.Abs(shadow.Radius),
+						ShadowDepth = Math.Sqrt(shadow.Offset.X * shadow.Offset.X + shadow.Offset.Y * shadow.Offset.Y),
+						Direction = Math.Atan2(-shadow.Offset.Y, shadow.Offset.X) * 180.0 / Math.PI,
+						Opacity = shadow.Opacity
+					};
 				}
+				RunOnUIElement(handler, ue => ue.Effect = effect);
 			});
 
 			// Clip → UIElement.Clip
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Clip), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue)
+				var clipShape = view.Clip;
+				System.Windows.Media.Geometry? clipGeometry = null;
+				if (clipShape != null)
 				{
-					var clipShape = view.Clip;
-					if (clipShape != null)
+					try
 					{
-						try
+						var w = view.Frame.Width > 0 ? view.Frame.Width : 100;
+						var h = view.Frame.Height > 0 ? view.Frame.Height : 100;
+						var path = clipShape.PathForBounds(new Graphics.Rect(0, 0, w, h));
+						if (path != null)
 						{
-							var w = view.Frame.Width > 0 ? view.Frame.Width : 100;
-							var h = view.Frame.Height > 0 ? view.Frame.Height : 100;
-							var path = clipShape.PathForBounds(new Graphics.Rect(0, 0, w, h));
-							if (path != null)
-							{
-								var pathStr = path.ToDefinitionString();
-								if (!string.IsNullOrEmpty(pathStr))
-									ue.Clip = System.Windows.Media.Geometry.Parse(pathStr);
-							}
+							var pathStr = path.ToDefinitionString();
+							if (!string.IsNullOrEmpty(pathStr))
+								clipGeometry = System.Windows.Media.Geometry.Parse(pathStr);
 						}
-						catch { }
 					}
-					else
-					{
-						ue.Clip = null;
-					}
+					catch { }
 				}
+				RunOnUIElement(handler, ue => ue.Clip = clipGeometry);
 			});
 
 			// InputTransparent → IsHitTestVisible
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.InputTransparent), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue)
-					ue.IsHitTestVisible = !view.InputTransparent;
+				bool transparent = view.InputTransparent;
+				RunOnUIElement(handler, ue => ue.IsHitTestVisible = !transparent);
 			});
 
 			// FlowDirection
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.FlowDirection), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-				{
-					fe.FlowDirection = view.FlowDirection == Microsoft.Maui.FlowDirection.RightToLeft
-						? System.Windows.FlowDirection.RightToLeft
-						: System.Windows.FlowDirection.LeftToRight;
-				}
+				var dir = view.FlowDirection == Microsoft.Maui.FlowDirection.RightToLeft
+					? System.Windows.FlowDirection.RightToLeft
+					: System.Windows.FlowDirection.LeftToRight;
+				RunOnUI(handler, fe => fe.FlowDirection = dir);
 			});
 
 			// AutomationId
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.AutomationId), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue && !string.IsNullOrEmpty(view.AutomationId))
-					System.Windows.Automation.AutomationProperties.SetAutomationId(ue, view.AutomationId);
+				if (!string.IsNullOrEmpty(view.AutomationId))
+					RunOnUIElement(handler, ue => System.Windows.Automation.AutomationProperties.SetAutomationId(ue, view.AutomationId));
 			});
 
 			// Semantics → Accessibility
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Semantics), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue && view.Semantics != null)
+				if (view.Semantics == null) return;
+				var desc = view.Semantics.Description;
+				var hint = view.Semantics.Hint;
+				RunOnUIElement(handler, ue =>
 				{
-					if (!string.IsNullOrEmpty(view.Semantics.Description))
-						System.Windows.Automation.AutomationProperties.SetName(ue, view.Semantics.Description);
-					if (!string.IsNullOrEmpty(view.Semantics.Hint))
-						System.Windows.Automation.AutomationProperties.SetHelpText(ue, view.Semantics.Hint);
-				}
+					if (!string.IsNullOrEmpty(desc))
+						System.Windows.Automation.AutomationProperties.SetName(ue, desc);
+					if (!string.IsNullOrEmpty(hint))
+						System.Windows.Automation.AutomationProperties.SetHelpText(ue, hint);
+				});
 			});
 
 			// ToolTip
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("ToolTip", (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.FrameworkElement fe)
-				{
-					object? tip = null;
-					try
-					{
-						tip = ToolTipProperties.GetText(view as BindableObject);
-					}
-					catch { }
-					if (tip is string s && !string.IsNullOrEmpty(s))
-						fe.ToolTip = s;
-					else
-						fe.ToolTip = null;
-				}
+				object? tip = null;
+				try { tip = ToolTipProperties.GetText(view as BindableObject); } catch { }
+				string? tipStr = tip is string s && !string.IsNullOrEmpty(s) ? s : null;
+				RunOnUI(handler, fe => fe.ToolTip = tipStr);
 			});
 
 			// ZIndex → Panel.ZIndex
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.ZIndex), (handler, view, _) =>
 			{
-				if (handler.PlatformView is System.Windows.UIElement ue)
-					System.Windows.Controls.Panel.SetZIndex(ue, view.ZIndex);
+				int z = view.ZIndex;
+				RunOnUIElement(handler, ue => System.Windows.Controls.Panel.SetZIndex(ue, z));
 			});
 
 			// ContextFlyout → ContextMenu
