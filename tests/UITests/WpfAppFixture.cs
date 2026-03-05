@@ -21,8 +21,8 @@ public class WpfAppFixture : IDisposable
     }
 
     /// <summary>
-    /// Always returns a fresh Process object with a valid MainWindowHandle.
-    /// This avoids "handle is invalid" errors from stale cached Process objects.
+    /// Always returns a fresh Process object for the WPF ControlGallery
+    /// with a valid MainWindowHandle. Distinguishes from WinUI by module path.
     /// </summary>
     public Process GetProcess()
     {
@@ -33,14 +33,18 @@ public class WpfAppFixture : IDisposable
                 try
                 {
                     p.Refresh();
-                    if (p.MainWindowHandle != IntPtr.Zero)
-                        return p;
+                    if (p.MainWindowHandle == IntPtr.Zero) continue;
+                    // Distinguish WPF from WinUI by checking module path
+                    var path = p.MainModule?.FileName ?? "";
+                    if (path.Contains("net10.0-windows10.0", StringComparison.OrdinalIgnoreCase))
+                        continue; // Skip WinUI process
+                    return p;
                 }
                 catch { }
             }
             Thread.Sleep(500);
         }
-        throw new InvalidOperationException("Could not find ControlGallery process with a valid window");
+        throw new InvalidOperationException("Could not find WPF ControlGallery process with a valid window");
     }
 
     public void Dispose()

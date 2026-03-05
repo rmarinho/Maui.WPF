@@ -95,8 +95,13 @@ public class AppLauncher : IDisposable
             try
             {
                 p.Refresh();
-                if (p.MainWindowHandle != IntPtr.Zero && !string.IsNullOrEmpty(p.MainWindowTitle))
-                    return p;
+                if (p.MainWindowHandle == IntPtr.Zero || string.IsNullOrEmpty(p.MainWindowTitle))
+                    continue;
+                // Skip WinUI processes (different TFM path)
+                var path = p.MainModule?.FileName ?? "";
+                if (path.Contains("net10.0-windows10.0", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                return p;
             }
             catch { }
         }
