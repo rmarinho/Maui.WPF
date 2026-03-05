@@ -299,6 +299,84 @@ public static class AutomationHelper
         proc.Refresh();
         return GetRoot(proc);
     }
+
+    /// <summary>
+    /// Scroll a scrollable element to bring an item into view.
+    /// Searches for a ScrollViewer or ListBox, then scrolls down until the target text appears.
+    /// </summary>
+    public static bool ScrollToElement(AutomationElement root, string targetText, int maxScrolls = 10)
+    {
+        // Find scrollable containers
+        var scrollables = root.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.List));
+        
+        foreach (AutomationElement scrollable in scrollables)
+        {
+            try
+            {
+                var scroll = (ScrollPattern)scrollable.GetCurrentPattern(ScrollPattern.Pattern);
+                for (int i = 0; i < maxScrolls; i++)
+                {
+                    // Check if target is now visible
+                    var found = root.FindFirst(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.NameProperty, targetText));
+                    if (found != null && !found.Current.BoundingRectangle.IsEmpty)
+                        return true;
+
+                    if (scroll.Current.VerticalScrollPercent >= 100) break;
+                    scroll.SetScrollPercent(ScrollPattern.NoScroll, 
+                        Math.Min(100, scroll.Current.VerticalScrollPercent + 20));
+                    Thread.Sleep(300);
+                }
+                // Reset scroll position
+                scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
+            }
+            catch { }
+        }
+        
+        // Also try ScrollViewer
+        var scrollViewers = root.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ClassNameProperty, "ScrollViewer"));
+        foreach (AutomationElement sv in scrollViewers)
+        {
+            try
+            {
+                var scroll = (ScrollPattern)sv.GetCurrentPattern(ScrollPattern.Pattern);
+                for (int i = 0; i < maxScrolls; i++)
+                {
+                    var found = root.FindFirst(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.NameProperty, targetText));
+                    if (found != null && !found.Current.BoundingRectangle.IsEmpty)
+                        return true;
+
+                    if (scroll.Current.VerticalScrollPercent >= 100) break;
+                    scroll.SetScrollPercent(ScrollPattern.NoScroll,
+                        Math.Min(100, scroll.Current.VerticalScrollPercent + 20));
+                    Thread.Sleep(300);
+                }
+                scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
+            }
+            catch { }
+        }
+        
+        return FindByName(root, targetText).Count > 0;
+    }
+
+    /// <summary>
+    /// Find and click a button, scrolling if necessary to find it.
+    /// </summary>
+    public static bool ClickButtonWithScroll(AutomationElement root, string buttonText)
+    {
+        // Try without scrolling first
+        if (ClickButton(root, buttonText))
+            return true;
+
+        // Scroll to find it, then try again
+        if (ScrollToElement(root, buttonText))
+            return ClickButton(root, buttonText);
+        
+        return false;
+    }
 }
 
 internal static class NativeMethods
