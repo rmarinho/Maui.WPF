@@ -398,3 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 msbuild-pp.xml
 tests/UITests/Screenshots/
+tests/UITests/Comparisons/

@@ -18,10 +18,39 @@ public static class ScreenshotHelper
     [DllImport("user32.dll")]
     static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
 
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("gdi32.dll")]
+    static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+
+    [DllImport("gdi32.dll")]
+    static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int nWidth, int nHeight);
+
+    [DllImport("gdi32.dll")]
+    static extern IntPtr SelectObject(IntPtr hdc, IntPtr hgdiobj);
+
+    [DllImport("gdi32.dll")]
+    static extern bool BitBlt(IntPtr hdcDest, int x, int y, int cx, int cy,
+        IntPtr hdcSrc, int x1, int y1, uint rop);
+
+    [DllImport("gdi32.dll")]
+    static extern bool DeleteDC(IntPtr hdc);
+
+    [DllImport("gdi32.dll")]
+    static extern bool DeleteObject(IntPtr hObject);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetDC(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
     [StructLayout(LayoutKind.Sequential)]
     struct RECT { public int Left, Top, Right, Bottom; }
 
     const uint PW_RENDERFULLCONTENT = 0x2;
+    const uint SRCCOPY = 0x00CC0020;
 
     /// <summary>
     /// Capture a screenshot of a process's main window using PrintWindow.
@@ -57,6 +86,44 @@ public static class ScreenshotHelper
         {
             g.ReleaseHdc(hdc);
         }
+        return bmp;
+    }
+
+    /// <summary>
+    /// Capture a window by bringing it to foreground and using BitBlt from screen DC.
+    /// Required for WinUI apps where PrintWindow returns black (DirectComposition rendering).
+    /// </summary>
+    public static Bitmap CaptureWindowBitBlt(Process proc)
+    {
+        proc.Refresh();
+        var hwnd = proc.MainWindowHandle;
+        if (hwnd == IntPtr.Zero)
+            throw new InvalidOperationException("No main window handle");
+
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(500);
+
+        if (!GetWindowRect(hwnd, out var rect))
+            throw new InvalidOperationException("GetWindowRect failed");
+
+        int width = rect.Right - rect.Left;
+        int height = rect.Bottom - rect.Top;
+        if (width <= 0 || height <= 0)
+            throw new InvalidOperationException($"Window has invalid size: {width}x{height}");
+
+        var screenDC = GetDC(IntPtr.Zero);
+        var memDC = CreateCompatibleDC(screenDC);
+        var hBitmap = CreateCompatibleBitmap(screenDC, width, height);
+        var oldBitmap = SelectObject(memDC, hBitmap);
+
+        BitBlt(memDC, 0, 0, width, height, screenDC, rect.Left, rect.Top, SRCCOPY);
+
+        SelectObject(memDC, oldBitmap);
+        var bmp = Image.FromHbitmap(hBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(memDC);
+        ReleaseDC(IntPtr.Zero, screenDC);
+
         return bmp;
     }
 
