@@ -26,7 +26,7 @@ public class ControlInteractionTests
         Thread.Sleep(1000);
         proc = _fixture.GetProcess();
         var root = AutomationHelper.GetRoot(proc);
-        AutomationHelper.ClickFlyoutItem(root, controlName);
+        AutomationHelper.ClickButtonWithScroll(root, controlName);
         Thread.Sleep(2000);
         proc = _fixture.GetProcess();
         return AutomationHelper.GetRoot(proc);

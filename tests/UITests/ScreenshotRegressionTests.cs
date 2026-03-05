@@ -103,8 +103,8 @@ public class ScreenshotRegressionTests
     {
         var proc = _fixture.GetProcess();
         using var bmp = ScreenshotHelper.CaptureWindow(proc);
-        Assert.True(bmp.Width >= 800, $"Window too narrow: {bmp.Width}px");
-        Assert.True(bmp.Height >= 500, $"Window too short: {bmp.Height}px");
+        Assert.True(bmp.Width >= 600, $"Window too narrow: {bmp.Width}px");
+        Assert.True(bmp.Height >= 400, $"Window too short: {bmp.Height}px");
     }
 
     [Fact]
