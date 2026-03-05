@@ -79,7 +79,7 @@
 | [x] **ContentPage** | ✅ | `PageHandler` — maps `IContentView.PresentedContent` to WPF `ContentControl` |
 | [x] **NavigationPage** | ✅ | `NavigationViewHandler` — `DockPanel` with toolbar (back button, title, toolbar items) + `ContentControl` content area |
 | [x] **TabbedPage** | ✅ | `TabbedViewHandler` — uses WPF `TabControl` with auto-generated `TabItem`s |
-| [x] **FlyoutPage** | ✅ | `FlyoutViewHandler` — WPF `Grid` with 3 columns (flyout \| `GridSplitter` \| detail) |
+| [x] **FlyoutPage** | ✅ | `FlyoutViewHandler` — WPF `Grid` with 3 columns (flyout \| `GridSplitter` \| detail); two-way `IsPresented` sync via `DragCompleted`, `FlyoutLayoutBehavior` support |
 | [x] **Shell** | ✅ | `ShellHandler` with flyout panel, tab control, URI-based navigation, shell item routing |
 | [x] **ModalPage** | ✅ | `ModalNavigationManager` with animated overlay push/pop |
 
@@ -107,7 +107,7 @@
 | [x] **ScrollView** | ✅ | `ScrollViewHandler` — WPF `ScrollViewer` wrapping child content |
 | [x] **ContentView** | ✅ | `ContentViewHandler` — WPF `ContentControl` |
 | [x] **Border** | ✅ | `BorderHandler` — WPF `Border` with `CornerRadius`, `BorderBrush`, `BorderThickness` |
-| [x] **Frame** | ✅ | Registered as `BorderHandler` alias in `AddMauiControlsHandlers()` |
+| [x] **Frame** | ✅ | Registered as `BorderHandler` alias in `AddMauiControlsHandlers()`; `HasShadow` applies default `DropShadowEffect` |
 
 > **Key Concept:** MAUI's layout engine (StackLayout, Grid, FlexLayout, AbsoluteLayout) is entirely cross-platform. The `LayoutHandler` just needs to create a native container, add/remove children, and call `Measure`/`Arrange` using MAUI-computed bounds.
 
@@ -121,8 +121,8 @@
 | [x] **Button** | ✅ | `Text`, `TextColor`, `FontSize`, `Background`, `Padding`, `CornerRadius` (stub), `Command`; WPF chrome overrides Background on some system themes |
 | [x] **Image** | ✅ | `FileImageSource`, `UriImageSource`, `StreamImageSource` loading; `Aspect` (Fill, AspectFit, AspectFill) via `Stretch` |
 | [x] **ImageButton** | ✅ | WPF `Button` with `Image` content; `Source`, `Aspect`, `Padding`, `BorderWidth`, `BorderColor` |
-| [x] **Entry** | ✅ | `Text`, `TextColor`, `FontSize`, `IsPassword`, `Placeholder`, `MaxLength`, `IsReadOnly`, `Keyboard`, `ReturnType`; missing `PlaceholderColor` watermark |
-| [x] **Editor** | ✅ | `Text`, `TextColor`, `FontSize`, `Placeholder`, `MaxLength`, `IsReadOnly`; missing placeholder watermark |
+| [x] **Entry** | ✅ | `Text`, `TextColor`, `FontSize`, `IsPassword` (PasswordBox swap), `Placeholder` (adorner overlay), `PlaceholderColor`, `MaxLength`, `IsReadOnly`, `Keyboard`, `ReturnType`, `CursorPosition`, `SelectionLength`, `Completed` event |
+| [x] **Editor** | ✅ | `Text`, `TextColor`, `FontSize`, `Placeholder` (adorner overlay), `PlaceholderColor`, `MaxLength`, `IsReadOnly`, `Completed` event |
 | [x] **Switch** | ✅ | Custom WPF `ControlTemplate` with animated toggle; `IsToggled`, `OnColor`, `TrackColor` (stub), `ThumbColor` (stub) |
 | [x] **CheckBox** | ✅ | WPF `CheckBox`; `IsChecked`, `Foreground` (via `SolidPaint`) |
 | [x] **Slider** | ✅ | WPF `Slider`; `Value`, `Minimum`, `Maximum`, `MinimumTrackColor`, `MaximumTrackColor`; `ThumbColor` not mapped |
@@ -142,7 +142,7 @@
 
 | Control | Status | Notes |
 |---------|--------|-------|
-| [x] **Picker** | ✅ | WPF `ComboBox`; `SelectedIndex`, `Items`, `Title`, `TextColor` |
+| [x] **Picker** | ✅ | WPF `ComboBox`; `SelectedIndex`, `Items`, `Title`, `TextColor`, `TitleColor` |
 | [x] **DatePicker** | ✅ | WPF `DatePicker`; `Date`, `MinimumDate`, `MaximumDate`, `Format` |
 | [x] **TimePicker** | ✅ | WPF `ComboBox` with time items; `Time` (nullable in MAUI 10), `Format` |
 | [x] **SearchBar** | ✅ | WPF `TextBox` + `Button`; `Text`, `Placeholder`, `TextColor`; missing search icon and clear button |
@@ -699,12 +699,10 @@ D:\repos\rmarinho\maui.wpf\
 |-------|----------|-------|
 | Button VirtualView null crash | Medium | Patched with try/catch guard |
 | WPF Button chrome overrides Background | Low | System theme overrides custom background on classic theme |
-| Entry/Editor lack placeholder watermark | Low | Placeholder text not visually distinct |
 | NavigationPage: no animated transitions | Low | Pages swap instantly |
 | Slider: ThumbColor not mapped | Low | |
 | Switch: TrackColor/ThumbColor stubs | Low | Custom template doesn't respond to color properties |
 | SearchBar: no search icon or clear button | Low | Plain TextBox + Button |
-| Frame not registered | Low | Could alias to BorderHandler |
 
 ---
 

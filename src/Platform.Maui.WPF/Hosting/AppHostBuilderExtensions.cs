@@ -355,8 +355,14 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			// Shadow → DropShadowEffect
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping(nameof(IView.Shadow), (handler, view, _) =>
 			{
+				// Check Frame.HasShadow (legacy property, used as fallback when Shadow is null)
+				bool hasFrameShadow = false;
+				if (view is Microsoft.Maui.Controls.Frame frame)
+					hasFrameShadow = frame.HasShadow;
+
 				var shadow = view.Shadow;
 				System.Windows.Media.Effects.DropShadowEffect? effect = null;
+
 				if (shadow != null && shadow.Paint is SolidPaint sp && sp.Color != null)
 				{
 					var c = sp.Color;
@@ -371,6 +377,18 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 						Opacity = shadow.Opacity
 					};
 				}
+				else if (hasFrameShadow)
+				{
+					effect = new System.Windows.Media.Effects.DropShadowEffect
+					{
+						Color = System.Windows.Media.Colors.Gray,
+						Direction = 320,
+						Opacity = 0.5,
+						BlurRadius = 6,
+						ShadowDepth = 2
+					};
+				}
+
 				RunOnUIElement(handler, ue => ue.Effect = effect);
 			});
 

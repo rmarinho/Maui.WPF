@@ -20,6 +20,8 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		double _flyoutWidth = 240;
 
+		public event EventHandler<bool>? IsPresentedChanged;
+
 		public FlyoutContainerView()
 		{
 			ColumnDefinitions.Add(new WColumnDefinition { Width = new WGridLength(_flyoutWidth) });
@@ -52,6 +54,15 @@ namespace Microsoft.Maui.Handlers.WPF
 			Children.Add(_flyoutArea);
 			Children.Add(_splitter);
 			Children.Add(_detailArea);
+
+			_splitter.DragCompleted += OnSplitterDragCompleted;
+		}
+
+		void OnSplitterDragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+		{
+			// Detect if user collapsed the flyout by dragging the splitter
+			bool isPresented = ColumnDefinitions[0].ActualWidth > 10;
+			IsPresentedChanged?.Invoke(this, isPresented);
 		}
 
 		public void ShowFlyout(System.Windows.FrameworkElement? view) => _flyoutArea.Content = view;
@@ -93,6 +104,24 @@ namespace Microsoft.Maui.Handlers.WPF
 		public FlyoutViewHandler() : base(Mapper) { }
 
 		protected override FlyoutContainerView CreatePlatformView() => new FlyoutContainerView();
+
+		protected override void ConnectHandler(FlyoutContainerView platformView)
+		{
+			base.ConnectHandler(platformView);
+			platformView.IsPresentedChanged += OnIsPresentedChanged;
+		}
+
+		protected override void DisconnectHandler(FlyoutContainerView platformView)
+		{
+			platformView.IsPresentedChanged -= OnIsPresentedChanged;
+			base.DisconnectHandler(platformView);
+		}
+
+		void OnIsPresentedChanged(object? sender, bool isPresented)
+		{
+			if (VirtualView is Microsoft.Maui.Controls.FlyoutPage fp && fp.IsPresented != isPresented)
+				fp.IsPresented = isPresented;
+		}
 
 		public static void MapFlyout(FlyoutViewHandler handler, IFlyoutView view)
 		{

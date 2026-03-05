@@ -182,5 +182,39 @@ namespace Microsoft.Maui.Handlers.WPF
 				handler.PlatformView.Inlines.Add(run);
 			}
 		}
+
+		public static void MapLineBreakMode(LabelHandler handler, ILabel label)
+		{
+			if (label is not Microsoft.Maui.Controls.Label mauiLabel)
+				return;
+
+			switch (mauiLabel.LineBreakMode)
+			{
+				case LineBreakMode.NoWrap:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.None;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
+				case LineBreakMode.WordWrap:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.None;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.Wrap;
+					break;
+				case LineBreakMode.CharacterWrap:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.CharacterEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.Wrap;
+					break;
+				case LineBreakMode.HeadTruncation:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.WordEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
+				case LineBreakMode.TailTruncation:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.CharacterEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
+				case LineBreakMode.MiddleTruncation:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.WordEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
+			}
+		}
 	}
 }

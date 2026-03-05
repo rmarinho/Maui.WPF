@@ -58,6 +58,16 @@ namespace Microsoft.Maui.Handlers.WPF
 				handler.PlatformView.Text = picker.Title;
 		}
 
+		public static void MapTitleColor(PickerHandler handler, IPicker picker)
+		{
+			if (picker.TitleColor != null && picker.SelectedIndex < 0)
+			{
+				var brush = ToBrush(picker.TitleColor);
+				if (brush != null)
+					handler.PlatformView.Foreground = brush;
+			}
+		}
+
 		public static void MapSelectedIndex(PickerHandler handler, IPicker picker)
 		{
 			if (handler._updating) return;

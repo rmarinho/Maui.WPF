@@ -5,6 +5,7 @@ namespace Microsoft.Maui.Handlers.WPF
 		public static IPropertyMapper<IPicker, PickerHandler> Mapper = new PropertyMapper<IPicker, PickerHandler>(ViewHandler.ViewMapper)
 		{
 			[nameof(IPicker.Title)] = MapTitle,
+			[nameof(IPicker.TitleColor)] = MapTitleColor,
 			[nameof(IPicker.SelectedIndex)] = MapSelectedIndex,
 			[nameof(ITextStyle.TextColor)] = MapTextColor,
 			[nameof(ITextStyle.Font)] = MapFont,
