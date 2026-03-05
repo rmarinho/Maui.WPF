@@ -66,7 +66,7 @@ public static class AutomationHelper
             var rect = t.Current.BoundingRectangle;
             if (rect.IsEmpty || rect.Width <= 0) continue;
 
-            // Walk up to find invokable parent (Button)
+            // Walk up to find invokable or selectable parent
             var walker = TreeWalker.ControlViewWalker;
             var current = t;
             for (int depth = 0; depth < 10; depth++)
@@ -77,6 +77,14 @@ public static class AutomationHelper
                 {
                     var invoke = (InvokePattern)current.GetCurrentPattern(InvokePattern.Pattern);
                     invoke.Invoke();
+                    return true;
+                }
+                catch (InvalidOperationException) { }
+                // Try SelectionItemPattern (CollectionView ListBoxItems)
+                try
+                {
+                    var select = (SelectionItemPattern)current.GetCurrentPattern(SelectionItemPattern.Pattern);
+                    select.Select();
                     return true;
                 }
                 catch (InvalidOperationException) { }

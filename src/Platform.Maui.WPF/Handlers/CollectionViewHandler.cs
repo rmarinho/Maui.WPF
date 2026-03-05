@@ -65,13 +65,24 @@ namespace Microsoft.Maui.Handlers.WPF
 			return _rootGrid;
 		}
 
+		bool _processingSelection;
+
 		void OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
-			if (VirtualView == null || _listBox == null) return;
+			if (VirtualView == null || _listBox == null || _processingSelection) return;
+
+			// Fire TapGesture for newly selected items (enables UIAutomation navigation)
+			foreach (var added in e.AddedItems)
+			{
+				if (_listBox.ItemMauiViews.TryGetValue(added, out var mauiView))
+					FireTapGestures(mauiView);
+			}
 
 			if (VirtualView.SelectionMode == Microsoft.Maui.Controls.SelectionMode.None)
 			{
+				_processingSelection = true;
 				_listBox.UnselectAll();
+				_processingSelection = false;
 				return;
 			}
 
@@ -85,6 +96,43 @@ namespace Microsoft.Maui.Handlers.WPF
 				foreach (var item in _listBox.SelectedItems)
 					selected.Add(item);
 				VirtualView.SelectedItems = selected;
+			}
+		}
+
+		static void FireTapGestures(View mauiView)
+		{
+			foreach (var recognizer in mauiView.GestureRecognizers)
+			{
+				if (recognizer is not Microsoft.Maui.Controls.TapGestureRecognizer tap) continue;
+
+				if (tap.Command != null && tap.Command.CanExecute(tap.CommandParameter))
+				{
+					tap.Command.Execute(tap.CommandParameter);
+					return;
+				}
+
+				var sendTapped = typeof(Microsoft.Maui.Controls.TapGestureRecognizer).GetMethod(
+					"SendTapped", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+				if (sendTapped != null)
+				{
+					var ps = sendTapped.GetParameters();
+					if (ps.Length == 1) sendTapped.Invoke(tap, new object?[] { mauiView });
+					else if (ps.Length == 2) sendTapped.Invoke(tap, new object?[] { mauiView, null });
+				}
+				return;
+			}
+
+			// Check child layout views for gestures
+			if (mauiView is Microsoft.Maui.Controls.Layout layout)
+			{
+				foreach (var child in layout)
+				{
+					if (child is View childView)
+					{
+						FireTapGestures(childView);
+						return;
+					}
+				}
 			}
 		}
 
@@ -273,6 +321,7 @@ namespace Microsoft.Maui.Handlers.WPF
 		internal Microsoft.Maui.Controls.DataTemplate? MauiGroupFooterTemplate { get; set; }
 		internal bool IsGrouped { get; set; }
 		internal Microsoft.Maui.Controls.CollectionView? MauiCollectionView { get; set; }
+		internal Dictionary<object, View> ItemMauiViews { get; } = new();
 
 		protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
 		{
@@ -342,36 +391,8 @@ namespace Microsoft.Maui.Handlers.WPF
 				var platformView = Microsoft.Maui.Platform.ElementExtensions.ToPlatform((IElement)content, mauiContext);
 				lbi.Content = platformView;
 
-				// Wire tap gestures from MAUI view to ListBoxItem click
-				// ListBoxItem may intercept mouse events preventing inner gesture handlers from firing
-				var mauiContent = content;
-				lbi.PreviewMouseLeftButtonUp += (s, e) =>
-				{
-					if (mauiContent == null) return;
-					foreach (var recognizer in mauiContent.GestureRecognizers)
-					{
-						if (recognizer is Microsoft.Maui.Controls.TapGestureRecognizer tap)
-						{
-							if (tap.Command != null && tap.Command.CanExecute(tap.CommandParameter))
-							{
-								tap.Command.Execute(tap.CommandParameter);
-								break;
-							}
-							
-							var sendTapped = typeof(Microsoft.Maui.Controls.TapGestureRecognizer).GetMethod(
-								"SendTapped", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-							if (sendTapped != null)
-							{
-								var parameters = sendTapped.GetParameters();
-								if (parameters.Length == 1)
-									sendTapped.Invoke(tap, new object?[] { mauiContent });
-								else if (parameters.Length == 2)
-									sendTapped.Invoke(tap, new object?[] { mauiContent, null });
-							}
-							break;
-						}
-					}
-				};
+				// Store MAUI view reference so OnSelectionChanged can fire TapGesture
+				ItemMauiViews[item] = content;
 			}
 			catch (Exception ex)
 			{
