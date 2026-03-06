@@ -46,6 +46,9 @@ public static class ScreenshotHelper
     [DllImport("user32.dll")]
     static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
+    [DllImport("user32.dll")]
+    static extern bool IsIconic(IntPtr hWnd);
+
     [StructLayout(LayoutKind.Sequential)]
     struct RECT { public int Left, Top, Right, Bottom; }
 
@@ -55,6 +58,7 @@ public static class ScreenshotHelper
     /// <summary>
     /// Capture a screenshot of a process's main window using PrintWindow.
     /// Works even when the window is partially obscured by other windows.
+    /// Falls back to BitBlt for DirectComposition/WinUI windows.
     /// </summary>
     public static Bitmap CaptureWindow(Process proc)
     {
@@ -63,14 +67,33 @@ public static class ScreenshotHelper
         if (hwnd == IntPtr.Zero)
             throw new InvalidOperationException("No main window handle");
 
-        NativeMethods.SetForegroundWindow(hwnd);
-        Thread.Sleep(300);
+        // Restore minimized windows first — they have off-screen coordinates
+        if (IsIconic(hwnd))
+        {
+            ShowWindow(hwnd, SW_RESTORE);
+            Thread.Sleep(800);
+            SetForegroundWindow(hwnd);
+            Thread.Sleep(400);
+        }
 
         if (!GetWindowRect(hwnd, out var rect))
             throw new InvalidOperationException("GetWindowRect failed");
 
         int width = rect.Right - rect.Left;
         int height = rect.Bottom - rect.Top;
+
+        // If window rect is unreasonably small or off-screen, try restore again
+        if (width < 200 || height < 200 || rect.Left < -10000)
+        {
+            ShowWindow(hwnd, SW_RESTORE);
+            Thread.Sleep(500);
+            SetForegroundWindow(hwnd);
+            Thread.Sleep(500);
+            GetWindowRect(hwnd, out rect);
+            width = rect.Right - rect.Left;
+            height = rect.Bottom - rect.Top;
+        }
+
         if (width <= 0 || height <= 0)
             throw new InvalidOperationException($"Window has invalid size: {width}x{height}");
 
@@ -80,13 +103,137 @@ public static class ScreenshotHelper
         try
         {
             if (!PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT))
-                PrintWindow(hwnd, hdc, 0); // fallback without full content flag
+                PrintWindow(hwnd, hdc, 0);
         }
         finally
         {
             g.ReleaseHdc(hdc);
         }
+
+        // Check if capture is blank (all black) - happens with DirectComposition/WinUI windows
+        if (IsCaptureBlank(bmp))
+        {
+            bmp.Dispose();
+            return CaptureWindowFallback(hwnd, rect);
+        }
+
         return bmp;
+    }
+
+    /// <summary>
+    /// Check if a captured bitmap is blank (all black/transparent).
+    /// </summary>
+    static bool IsCaptureBlank(Bitmap bmp)
+    {
+        int nonBlank = 0;
+        for (int x = 10; x < bmp.Width - 10; x += bmp.Width / 20 + 1)
+        {
+            for (int y = 10; y < bmp.Height - 10; y += bmp.Height / 20 + 1)
+            {
+                var px = bmp.GetPixel(x, y);
+                if (px.A > 10 && (px.R > 5 || px.G > 5 || px.B > 5))
+                    nonBlank++;
+            }
+        }
+        return nonBlank < 5;
+    }
+
+    [DllImport("user32.dll")]
+    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("dwmapi.dll")]
+    static extern int DwmFlush();
+
+    const int SW_MINIMIZE = 6;
+    const int SW_RESTORE = 9;
+
+    /// <summary>
+    /// Fallback capture: bring window to foreground, wait for render, then BitBlt from screen.
+    /// Used when PrintWindow returns blank (DirectComposition/WinUI windows).
+    /// Minimizes other overlapping windows first to get a clean capture,
+    /// but skips other ControlGallery windows to avoid side effects.
+    /// </summary>
+    static Bitmap CaptureWindowFallback(IntPtr hwnd, RECT rect)
+    {
+        // Bring target to foreground first (ensures it's restored and visible)
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(400);
+
+        // Re-read position now that window is in foreground
+        GetWindowRect(hwnd, out rect);
+        int width = rect.Right - rect.Left;
+        int height = rect.Bottom - rect.Top;
+        if (width < 200 || height < 200)
+        {
+            ShowWindow(hwnd, SW_RESTORE);
+            Thread.Sleep(600);
+            SetForegroundWindow(hwnd);
+            Thread.Sleep(400);
+            GetWindowRect(hwnd, out rect);
+            width = rect.Right - rect.Left;
+            height = rect.Bottom - rect.Top;
+        }
+
+        // Minimize other overlapping non-ControlGallery windows
+        var otherWindows = new List<IntPtr>();
+        foreach (var p in Process.GetProcesses())
+        {
+            try
+            {
+                if (p.MainWindowHandle != IntPtr.Zero && p.MainWindowHandle != hwnd)
+                {
+                    // Never minimize ControlGallery windows (WPF or WinUI)
+                    if (p.ProcessName.Equals("ControlGallery", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    RECT other;
+                    if (GetWindowRect(p.MainWindowHandle, out other))
+                    {
+                        // Check if it overlaps
+                        if (other.Left < rect.Right && other.Right > rect.Left &&
+                            other.Top < rect.Bottom && other.Bottom > rect.Top)
+                        {
+                            ShowWindow(p.MainWindowHandle, SW_MINIMIZE);
+                            otherWindows.Add(p.MainWindowHandle);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // Bring target to foreground again after minimizing others
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(400);
+        try { DwmFlush(); } catch { }
+        Thread.Sleep(200);
+
+        // Final position read
+        GetWindowRect(hwnd, out rect);
+        width = rect.Right - rect.Left;
+        height = rect.Bottom - rect.Top;
+
+        // BitBlt from screen DC (window is now unoccluded)
+        var screenDC = GetDC(IntPtr.Zero);
+        var memDC = CreateCompatibleDC(screenDC);
+        var hBitmap = CreateCompatibleBitmap(screenDC, width, height);
+        var oldBitmap = SelectObject(memDC, hBitmap);
+
+        BitBlt(memDC, 0, 0, width, height, screenDC, rect.Left, rect.Top, SRCCOPY);
+
+        SelectObject(memDC, oldBitmap);
+        var result = Image.FromHbitmap(hBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(memDC);
+        ReleaseDC(IntPtr.Zero, screenDC);
+
+        // Restore minimized windows
+        foreach (var h in otherWindows)
+        {
+            try { ShowWindow(h, SW_RESTORE); } catch { }
+        }
+
+        return result;
     }
 
     /// <summary>
