@@ -40,6 +40,8 @@ public class CompareApps
     const int WinHeight = 900;
     const int WinX = 100;
     const int WinY = 50;
+    // Move WPF off-screen during WinUI mouse navigation to avoid stealing clicks
+    const int OffScreenX = -2000;
 
     // WinUI flyout page indices (order in Shell)
     static readonly Dictionary<string, int> FlyoutIndex = new()
@@ -103,14 +105,16 @@ public class CompareApps
         if (winui == null) { Assert.Fail("WinUI app not available"); return; }
 
         var wpf = _fixture.GetProcess();
-        PositionWindow(wpf);
-        PositionWindow(winui);
 
-        // Navigate both to same page
-        AutomationHelper.NavigateToPageFresh(wpf, page);
-        Thread.Sleep(1000);
+        // Navigate WinUI first (needs foreground for mouse clicks on sub-pages)
+        PositionWindow(winui);
         NavigateWinUIFlyout(winui, page);
         Thread.Sleep(1500);
+
+        // Navigate WPF (uses UIAutomation, works without foreground)
+        PositionWindow(wpf);
+        AutomationHelper.NavigateToPageFresh(wpf, page);
+        Thread.Sleep(1000);
 
         SaveComparison(_fixture.GetProcess(), RefreshWinUI(winui), $"page_{Sanitize(page)}");
     }
@@ -126,11 +130,18 @@ public class CompareApps
         if (winui == null) { Assert.Fail("WinUI app not available"); return; }
 
         var wpf = _fixture.GetProcess();
-        PositionWindow(wpf);
+
+        // Move WPF off-screen so WinUI mouse clicks don't land on it
+        MoveWindowOffScreen(wpf);
         PositionWindow(winui);
 
-        NavigateWpfToSubPage("Controls", control);
+        // Navigate WinUI first (needs foreground for mouse click on sub-page tile)
         NavigateWinUIToSubPage(winui, "Controls", control);
+        VerifyWinUINavigation(winui, control);
+
+        // Now navigate WPF (UIAutomation — works without foreground)
+        PositionWindow(wpf);
+        NavigateWpfToSubPage("Controls", control);
 
         SaveComparison(_fixture.GetProcess(), RefreshWinUI(winui), $"control_{Sanitize(control)}");
     }
