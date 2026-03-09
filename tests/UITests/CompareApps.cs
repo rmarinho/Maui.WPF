@@ -32,16 +32,19 @@ public class CompareApps
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     const uint SWP_NOZORDER = 0x0004;
     const uint SWP_SHOWWINDOW = 0x0040;
+    const int SW_MINIMIZE = 6;
+    const int SW_RESTORE = 9;
 
     // Standard window size for comparisons
     const int WinWidth = 1400;
     const int WinHeight = 900;
     const int WinX = 100;
     const int WinY = 50;
-    // Move WPF off-screen during WinUI mouse navigation to avoid stealing clicks
-    const int OffScreenX = -2000;
 
     // WinUI flyout page indices (order in Shell)
     static readonly Dictionary<string, int> FlyoutIndex = new()
@@ -131,8 +134,8 @@ public class CompareApps
 
         var wpf = _fixture.GetProcess();
 
-        // Move WPF off-screen so WinUI mouse clicks don't land on it
-        MoveWindowOffScreen(wpf);
+        // Minimize WPF so WinUI mouse clicks don't land on it
+        MinimizeWindow(wpf);
         PositionWindow(winui);
 
         // Navigate WinUI first (needs foreground for mouse click on sub-page tile)
@@ -140,7 +143,7 @@ public class CompareApps
         VerifyWinUINavigation(winui, control);
 
         // Now navigate WPF (UIAutomation — works without foreground)
-        PositionWindow(wpf);
+        RestoreAndPosition(wpf);
         NavigateWpfToSubPage("Controls", control);
 
         SaveComparison(_fixture.GetProcess(), RefreshWinUI(winui), $"control_{Sanitize(control)}");
@@ -157,11 +160,14 @@ public class CompareApps
         if (winui == null) { Assert.Fail("WinUI app not available"); return; }
 
         var wpf = _fixture.GetProcess();
-        PositionWindow(wpf);
+        MinimizeWindow(wpf);
         PositionWindow(winui);
 
-        NavigateWpfToSubPage("Layouts", layout);
         NavigateWinUIToSubPage(winui, "Layouts", layout);
+        VerifyWinUINavigation(winui, layout);
+
+        RestoreAndPosition(wpf);
+        NavigateWpfToSubPage("Layouts", layout);
 
         SaveComparison(_fixture.GetProcess(), RefreshWinUI(winui), $"layout_{Sanitize(layout)}");
     }
@@ -177,11 +183,14 @@ public class CompareApps
         if (winui == null) { Assert.Fail("WinUI app not available"); return; }
 
         var wpf = _fixture.GetProcess();
-        PositionWindow(wpf);
+        MinimizeWindow(wpf);
         PositionWindow(winui);
 
-        NavigateWpfToSubPage("Features", feature);
         NavigateWinUIToSubPage(winui, "Features", feature);
+        VerifyWinUINavigation(winui, feature);
+
+        RestoreAndPosition(wpf);
+        NavigateWpfToSubPage("Features", feature);
 
         SaveComparison(_fixture.GetProcess(), RefreshWinUI(winui), $"feature_{Sanitize(feature)}");
     }
@@ -209,6 +218,29 @@ public class CompareApps
         if (proc.MainWindowHandle == IntPtr.Zero) return;
         SetWindowPos(proc.MainWindowHandle, IntPtr.Zero, WinX, WinY, WinWidth, WinHeight, SWP_NOZORDER | SWP_SHOWWINDOW);
         Thread.Sleep(300);
+    }
+
+    /// <summary>
+    /// Minimize a window so it doesn't intercept mouse clicks meant for another window.
+    /// </summary>
+    static void MinimizeWindow(Process proc)
+    {
+        proc.Refresh();
+        if (proc.MainWindowHandle == IntPtr.Zero) return;
+        ShowWindow(proc.MainWindowHandle, SW_MINIMIZE);
+        Thread.Sleep(300);
+    }
+
+    /// <summary>
+    /// Restore a minimized window and position it for capture.
+    /// </summary>
+    static void RestoreAndPosition(Process proc)
+    {
+        proc.Refresh();
+        if (proc.MainWindowHandle == IntPtr.Zero) return;
+        ShowWindow(proc.MainWindowHandle, SW_RESTORE);
+        Thread.Sleep(300);
+        PositionWindow(proc);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -338,7 +370,46 @@ public class CompareApps
     }
 
     /// <summary>
-    /// Get all flyout ListItem elements from WinUI (NavigationViewItems).
+    /// Verify WinUI actually navigated to the target sub-page by checking for
+    /// a title/heading matching the sub-page name. If not found, retry the click.
+    /// </summary>
+    static void VerifyWinUINavigation(Process winui, string expectedPage)
+    {
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            winui.Refresh();
+            if (winui.MainWindowHandle == IntPtr.Zero) continue;
+
+            var root = AutomationElement.FromHandle(winui.MainWindowHandle);
+            var texts = root.FindAll(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
+
+            // On a sub-page, the page title appears as a heading (often the first
+            // text that matches). It should NOT still show the full list of controls.
+            // Check: does the page have a "Namespace:" text (sub-page indicator)?
+            bool hasNamespace = false;
+            bool hasTitleMatch = false;
+            foreach (AutomationElement t in texts)
+            {
+                var name = t.Current.Name ?? "";
+                if (name.StartsWith("Namespace:")) hasNamespace = true;
+                if (name.Equals(expectedPage, StringComparison.OrdinalIgnoreCase)) hasTitleMatch = true;
+                // Some pages use singular form (e.g. "Button" for "Buttons")
+                if (name.Equals(expectedPage.TrimEnd('s'), StringComparison.OrdinalIgnoreCase)) hasTitleMatch = true;
+            }
+
+            if (hasNamespace || hasTitleMatch)
+                return; // Successfully navigated
+
+            // Still on overview — retry click
+            SetForegroundWindow(winui.MainWindowHandle);
+            Thread.Sleep(500);
+            root = AutomationElement.FromHandle(winui.MainWindowHandle);
+            if (!ClickWinUITextElement(root, expectedPage))
+                ScrollAndClick(root, expectedPage);
+            Thread.Sleep(2000);
+        }
+    }
     /// </summary>
     static List<AutomationElement> GetWinUIFlyoutItems(AutomationElement root)
     {
