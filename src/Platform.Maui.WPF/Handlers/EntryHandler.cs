@@ -19,6 +19,8 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(IEntry.Keyboard)] = MapKeyboard,
 			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
 			[nameof(IView.Background)] = MapBackground,
+			[nameof(ITextInput.CursorPosition)] = MapCursorPosition,
+			[nameof(ITextInput.SelectionLength)] = MapSelectionLength,
 		};
 
 		public static CommandMapper<IEntry, EntryHandler> CommandMapper = new(ViewCommandMapper)

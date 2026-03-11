@@ -32,7 +32,14 @@ namespace Microsoft.Maui.Platform.WPF
 
 			var measure = CrossPlatformMeasure(availableSize.Width, availableSize.Height);
 
-			return new Size(measure.Width, measure.Height);
+			// WPF requires all children to be measured during MeasureOverride.
+			var resultSize = new Size(measure.Width, measure.Height);
+			foreach (System.Windows.UIElement child in Children)
+			{
+				child.Measure(resultSize);
+			}
+
+			return resultSize;
 		}
 
 		protected override global::System.Windows.Size ArrangeOverride(global::System.Windows.Size finalSize)

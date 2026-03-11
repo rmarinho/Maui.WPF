@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+msbuild-pp.xml
+tests/UITests/Screenshots/
+tests/UITests/Comparisons/

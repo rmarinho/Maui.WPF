@@ -8,6 +8,9 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(IBorderView.Stroke)] = MapStroke,
 			[nameof(IBorderView.StrokeThickness)] = MapStrokeThickness,
 			[nameof(IBorderView.Shape)] = MapStrokeShape,
+			[nameof(IBorderView.StrokeDashPattern)] = MapStrokeDashPattern,
+			[nameof(IBorderView.StrokeLineCap)] = MapStrokeLineCap,
+			[nameof(IBorderView.StrokeLineJoin)] = MapStrokeLineJoin,
 			[nameof(IView.Background)] = MapBackground,
 			[nameof(IBorderView.Padding)] = MapPadding,
 		};

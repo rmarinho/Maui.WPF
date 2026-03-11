@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System;
 using System.Windows;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.WPF;
 
 namespace Microsoft.Maui.Handlers.WPF
 {
-	public partial class ContentViewHandler : ViewHandler<IContentView, ContentPanel>
+	public partial class ContentViewHandler : WPFViewHandler<IContentView, ContentPanel>
 	{
 		public override void SetVirtualView(IView view)
 		{

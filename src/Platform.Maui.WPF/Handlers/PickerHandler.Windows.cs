@@ -7,6 +7,8 @@ namespace Microsoft.Maui.Handlers.WPF
 {
 	public partial class PickerHandler : WPFViewHandler<IPicker, WComboBox>
 	{
+		bool _updating;
+
 		protected override WComboBox CreatePlatformView()
 		{
 			return new WComboBox
@@ -29,8 +31,16 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		void OnSelectionChanged(object sender, WSelectionChangedEventArgs e)
 		{
-			if (VirtualView == null) return;
-			VirtualView.SelectedIndex = PlatformView.SelectedIndex;
+			if (VirtualView == null || _updating) return;
+			_updating = true;
+			try
+			{
+				VirtualView.SelectedIndex = PlatformView.SelectedIndex;
+			}
+			finally
+			{
+				_updating = false;
+			}
 		}
 
 		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
@@ -48,10 +58,29 @@ namespace Microsoft.Maui.Handlers.WPF
 				handler.PlatformView.Text = picker.Title;
 		}
 
+		public static void MapTitleColor(PickerHandler handler, IPicker picker)
+		{
+			if (picker.TitleColor != null && picker.SelectedIndex < 0)
+			{
+				var brush = ToBrush(picker.TitleColor);
+				if (brush != null)
+					handler.PlatformView.Foreground = brush;
+			}
+		}
+
 		public static void MapSelectedIndex(PickerHandler handler, IPicker picker)
 		{
-			if (handler.PlatformView.SelectedIndex != picker.SelectedIndex)
-				handler.PlatformView.SelectedIndex = picker.SelectedIndex;
+			if (handler._updating) return;
+			handler._updating = true;
+			try
+			{
+				if (handler.PlatformView.SelectedIndex != picker.SelectedIndex)
+					handler.PlatformView.SelectedIndex = picker.SelectedIndex;
+			}
+			finally
+			{
+				handler._updating = false;
+			}
 		}
 
 		public static void MapTextColor(PickerHandler handler, IPicker picker)
@@ -108,11 +137,19 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapItems(PickerHandler handler, IPicker picker)
 		{
-			handler.PlatformView.Items.Clear();
-			var count = picker.GetCount();
-			for (int i = 0; i < count; i++)
+			handler._updating = true;
+			try
 			{
-				handler.PlatformView.Items.Add(picker.GetItem(i));
+				handler.PlatformView.Items.Clear();
+				var count = picker.GetCount();
+				for (int i = 0; i < count; i++)
+				{
+					handler.PlatformView.Items.Add(picker.GetItem(i));
+				}
+			}
+			finally
+			{
+				handler._updating = false;
 			}
 		}
 	}

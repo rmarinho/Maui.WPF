@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using WTextBox = System.Windows.Controls.TextBox;
 using WTextChangedEventArgs = System.Windows.Controls.TextChangedEventArgs;
@@ -7,6 +9,8 @@ namespace Microsoft.Maui.Handlers.WPF
 {
 	public partial class EditorHandler : WPFViewHandler<IEditor, WTextBox>
 	{
+		TextBlock? _placeholderBlock;
+
 		protected override WTextBox CreatePlatformView()
 		{
 			return new WTextBox
@@ -22,11 +26,17 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			base.ConnectHandler(platformView);
 			platformView.TextChanged += OnTextChanged;
+			platformView.KeyUp += OnKeyUp;
+			platformView.GotFocus += OnFocusChanged;
+			platformView.LostFocus += OnFocusChanged;
 		}
 
 		protected override void DisconnectHandler(WTextBox platformView)
 		{
 			platformView.TextChanged -= OnTextChanged;
+			platformView.KeyUp -= OnKeyUp;
+			platformView.GotFocus -= OnFocusChanged;
+			platformView.LostFocus -= OnFocusChanged;
 			base.DisconnectHandler(platformView);
 		}
 
@@ -34,6 +44,62 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (VirtualView == null) return;
 			VirtualView.Text = PlatformView.Text;
+			UpdatePlaceholderVisibility();
+		}
+
+		void OnKeyUp(object sender, KeyEventArgs e)
+		{
+			if (e.Key == Key.Enter && VirtualView is Microsoft.Maui.Controls.Editor editor)
+			{
+				try
+				{
+					editor.SendCompleted();
+				}
+				catch { }
+			}
+		}
+
+		void OnFocusChanged(object sender, RoutedEventArgs e)
+		{
+			UpdatePlaceholderVisibility();
+		}
+
+		void UpdatePlaceholderVisibility()
+		{
+			if (_placeholderBlock == null) return;
+			_placeholderBlock.Visibility = string.IsNullOrEmpty(PlatformView.Text) && !PlatformView.IsFocused
+				? System.Windows.Visibility.Visible
+				: System.Windows.Visibility.Collapsed;
+		}
+
+		void EnsurePlaceholderBlock()
+		{
+			if (_placeholderBlock != null) return;
+
+			_placeholderBlock = new TextBlock
+			{
+				IsHitTestVisible = false,
+				Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 160, 160)),
+				VerticalAlignment = System.Windows.VerticalAlignment.Top,
+				Margin = new System.Windows.Thickness(4, 4, 0, 0),
+			};
+
+			var adornerLayer = System.Windows.Documents.AdornerLayer.GetAdornerLayer(PlatformView);
+			if (adornerLayer != null)
+			{
+				adornerLayer.Add(new PlaceholderAdorner(PlatformView, _placeholderBlock));
+			}
+			else
+			{
+				void OnLoaded(object s, RoutedEventArgs e)
+				{
+					PlatformView.Loaded -= OnLoaded;
+					var layer = System.Windows.Documents.AdornerLayer.GetAdornerLayer(PlatformView);
+					if (layer != null && _placeholderBlock != null)
+						layer.Add(new PlaceholderAdorner(PlatformView, _placeholderBlock));
+				}
+				PlatformView.Loaded += OnLoaded;
+			}
 		}
 
 		static System.Windows.Media.SolidColorBrush? ToBrush(Microsoft.Maui.Graphics.Color? color)
@@ -53,12 +119,22 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapPlaceholder(EditorHandler handler, IEditor editor)
 		{
-			// WPF TextBox doesn't have native placeholder support
+			handler.EnsurePlaceholderBlock();
+			if (handler._placeholderBlock != null)
+			{
+				handler._placeholderBlock.Text = editor.Placeholder ?? string.Empty;
+				handler.UpdatePlaceholderVisibility();
+			}
 		}
 
 		public static void MapPlaceholderColor(EditorHandler handler, IEditor editor)
 		{
-			// WPF TextBox doesn't have native placeholder support
+			if (handler._placeholderBlock != null && editor.PlaceholderColor != null)
+			{
+				var brush = ToBrush(editor.PlaceholderColor);
+				if (brush != null)
+					handler._placeholderBlock.Foreground = brush;
+			}
 		}
 
 		public static void MapTextColor(EditorHandler handler, IEditor editor)

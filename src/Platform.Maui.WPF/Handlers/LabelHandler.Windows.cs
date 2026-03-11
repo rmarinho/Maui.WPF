@@ -28,6 +28,15 @@ namespace Microsoft.Maui.Handlers.WPF
 			var brush = ToBrush(label.TextColor);
 			if (brush != null)
 				handler.PlatformView.Foreground = brush;
+			else
+			{
+				// Apply theme-appropriate default when no explicit TextColor
+				var app = Microsoft.Maui.Controls.Application.Current;
+				bool dark = app?.RequestedTheme == AppTheme.Dark;
+				handler.PlatformView.Foreground = dark
+					? new WBrush(WColor.FromRgb(255, 255, 255))
+					: new WBrush(WColor.FromRgb(26, 26, 26));
+			}
 		}
 
 		public static void MapFont(LabelHandler handler, ILabel label)
@@ -50,7 +59,10 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapCharacterSpacing(LabelHandler handler, ILabel label)
 		{
-			// WPF TextBlock does not have a direct CharacterSpacing property.
+			// WPF doesn't have a direct CharacterSpacing property on TextBlock.
+			// Character spacing is only available through OpenType typography features
+			// which depends on font support. Best effort: no-op for unsupported fonts.
+			// MAUI WinUI uses TextElement.CharacterSpacing which is a WinUI-specific API.
 		}
 
 		public static void MapHorizontalTextAlignment(LabelHandler handler, ILabel label)
@@ -154,6 +166,8 @@ namespace Microsoft.Maui.Handlers.WPF
 				if (!string.IsNullOrEmpty(mauiSpan.FontFamily))
 					run.FontFamily = new System.Windows.Media.FontFamily(mauiSpan.FontFamily);
 
+				// CharacterSpacing: WPF doesn't support per-run character spacing natively
+
 				if (mauiSpan.TextDecorations.HasFlag(TextDecorations.Underline))
 					run.TextDecorations = System.Windows.TextDecorations.Underline;
 
@@ -166,6 +180,40 @@ namespace Microsoft.Maui.Handlers.WPF
 				}
 
 				handler.PlatformView.Inlines.Add(run);
+			}
+		}
+
+		public static void MapLineBreakMode(LabelHandler handler, ILabel label)
+		{
+			if (label is not Microsoft.Maui.Controls.Label mauiLabel)
+				return;
+
+			switch (mauiLabel.LineBreakMode)
+			{
+				case LineBreakMode.NoWrap:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.None;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
+				case LineBreakMode.WordWrap:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.None;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.Wrap;
+					break;
+				case LineBreakMode.CharacterWrap:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.CharacterEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.Wrap;
+					break;
+				case LineBreakMode.HeadTruncation:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.WordEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
+				case LineBreakMode.TailTruncation:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.CharacterEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
+				case LineBreakMode.MiddleTruncation:
+					handler.PlatformView.TextTrimming = System.Windows.TextTrimming.WordEllipsis;
+					handler.PlatformView.TextWrapping = System.Windows.TextWrapping.NoWrap;
+					break;
 			}
 		}
 	}
