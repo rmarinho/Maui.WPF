@@ -35,6 +35,12 @@ public class CompareApps
     [DllImport("user32.dll")]
     static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    [DllImport("user32.dll")]
+    static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct RECT { public int Left, Top, Right, Bottom; }
+
     const uint SWP_NOZORDER = 0x0004;
     const uint SWP_SHOWWINDOW = 0x0040;
     const int SW_MINIMIZE = 6;
@@ -140,9 +146,8 @@ public class CompareApps
 
         // Navigate WinUI first (needs foreground for mouse click on sub-page tile)
         NavigateWinUIToSubPage(winui, "Controls", control);
-        VerifyWinUINavigation(winui, control);
 
-        // Now navigate WPF (UIAutomation — works without foreground)
+        // Now navigate WPF(UIAutomation — works without foreground)
         RestoreAndPosition(wpf);
         NavigateWpfToSubPage("Controls", control);
 
@@ -164,7 +169,6 @@ public class CompareApps
         PositionWindow(winui);
 
         NavigateWinUIToSubPage(winui, "Layouts", layout);
-        VerifyWinUINavigation(winui, layout);
 
         RestoreAndPosition(wpf);
         NavigateWpfToSubPage("Layouts", layout);
@@ -187,7 +191,6 @@ public class CompareApps
         PositionWindow(winui);
 
         NavigateWinUIToSubPage(winui, "Features", feature);
-        VerifyWinUINavigation(winui, feature);
 
         RestoreAndPosition(wpf);
         NavigateWpfToSubPage("Features", feature);
@@ -292,6 +295,7 @@ public class CompareApps
 
     /// <summary>
     /// Navigate WinUI to a sub-page: flyout first, then mouse-click the target text.
+    /// Verifies navigation succeeded by checking automation tree content changed.
     /// </summary>
     static void NavigateWinUIToSubPage(Process winui, string section, string subPage)
     {
@@ -299,30 +303,60 @@ public class CompareApps
         NavigateWinUIFlyout(winui, section);
         Thread.Sleep(1000);
 
-        // Now find and click the sub-page by text — must use mouse since WinUI
-        // CollectionView items have no InvokePattern/SelectionItemPattern
         winui.Refresh();
         if (winui.MainWindowHandle == IntPtr.Zero) return;
 
         SetForegroundWindow(winui.MainWindowHandle);
         Thread.Sleep(300);
 
+        // Capture the overview text content to detect when navigation succeeds
         var root = AutomationElement.FromHandle(winui.MainWindowHandle);
+        var overviewTexts = GetAllTextNames(root);
 
-        // Try to find the target text, scrolling if needed
-        if (!ClickWinUITextElement(root, subPage))
+        // Try clicking with retry and verification
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            // Try scrolling to find it
-            ScrollAndClick(root, subPage);
+            SetForegroundWindow(winui.MainWindowHandle);
+            Thread.Sleep(300);
+            root = AutomationElement.FromHandle(winui.MainWindowHandle);
+
+            if (!ClickWinUIVisibleTextElement(root, winui.MainWindowHandle, subPage))
+                ScrollAndClickVisible(root, winui.MainWindowHandle, subPage);
+
+            Thread.Sleep(2500);
+
+            // Verify: check if the page changed by looking for sub-page indicators
+            winui.Refresh();
+            root = AutomationElement.FromHandle(winui.MainWindowHandle);
+            var currentTexts = GetAllTextNames(root);
+
+            // Sub-page has "Namespace:" or "C#"/"XAML" code tabs, or "← Back"
+            bool isOnSubPage = currentTexts.Any(t => t.StartsWith("Namespace:")) ||
+                               currentTexts.Contains("C#") ||
+                               currentTexts.Contains("← Back") ||
+                               currentTexts.Contains("Back");
+
+            // Also check: the overview tile list should be gone
+            bool overviewGone = !currentTexts.Contains("ActivityIndicator") ||
+                                !currentTexts.Contains("WebView");
+
+            if (isOnSubPage || overviewGone)
+                return; // Navigation succeeded
         }
-        Thread.Sleep(2000);
     }
 
     /// <summary>
-    /// Find a text element by name and click at its center via mouse.
+    /// Click a text element only if it's within the visible window bounds.
     /// </summary>
-    static bool ClickWinUITextElement(AutomationElement root, string text)
+    static bool ClickWinUIVisibleTextElement(AutomationElement root, IntPtr hwnd, string text)
     {
+        // Get window client area bounds
+        GetWindowRect(hwnd, out var winRect);
+        int winTop = winRect.Top;
+        int winBottom = winRect.Bottom;
+        int winLeft = winRect.Left;
+        int winRight = winRect.Right;
+
         var elements = root.FindAll(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.NameProperty, text));
 
@@ -331,7 +365,12 @@ public class CompareApps
             var rect = el.Current.BoundingRectangle;
             if (rect.IsEmpty || rect.Width <= 0 || rect.Height <= 0) continue;
 
-            // Click at center of the element
+            // Only click if element center is within visible window bounds
+            int cy = (int)(rect.Y + rect.Height / 2);
+            int cx = (int)(rect.X + rect.Width / 2);
+            if (cy < winTop || cy > winBottom || cx < winLeft || cx > winRight)
+                continue; // Element is scrolled out of view
+
             AutomationHelper.ClickAt(rect);
             return true;
         }
@@ -339,9 +378,9 @@ public class CompareApps
     }
 
     /// <summary>
-    /// Scroll through lists looking for the target, then click it.
+    /// Scroll through lists looking for the target within visible bounds, then click it.
     /// </summary>
-    static void ScrollAndClick(AutomationElement root, string text)
+    static void ScrollAndClickVisible(AutomationElement root, IntPtr hwnd, string text)
     {
         var scrollables = root.FindAll(TreeScope.Descendants,
             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.List));
@@ -351,17 +390,16 @@ public class CompareApps
             try
             {
                 var scroll = (ScrollPattern)scrollable.GetCurrentPattern(ScrollPattern.Pattern);
-                // Reset scroll
                 scroll.SetScrollPercent(ScrollPattern.NoScroll, 0);
                 Thread.Sleep(300);
 
-                for (int i = 0; i < 15; i++)
+                for (int i = 0; i < 20; i++)
                 {
-                    if (ClickWinUITextElement(root, text))
+                    if (ClickWinUIVisibleTextElement(root, hwnd, text))
                         return;
                     if (scroll.Current.VerticalScrollPercent >= 100) break;
                     scroll.SetScrollPercent(ScrollPattern.NoScroll,
-                        Math.Min(100, scroll.Current.VerticalScrollPercent + 15));
+                        Math.Min(100, scroll.Current.VerticalScrollPercent + 10));
                     Thread.Sleep(300);
                 }
             }
@@ -370,45 +408,20 @@ public class CompareApps
     }
 
     /// <summary>
-    /// Verify WinUI actually navigated to the target sub-page by checking for
-    /// a title/heading matching the sub-page name. If not found, retry the click.
+    /// Get all text element names from the automation tree.
     /// </summary>
-    static void VerifyWinUINavigation(Process winui, string expectedPage)
+    static List<string> GetAllTextNames(AutomationElement root)
     {
-        for (int attempt = 0; attempt < 3; attempt++)
+        var result = new List<string>();
+        var texts = root.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
+        foreach (AutomationElement t in texts)
         {
-            winui.Refresh();
-            if (winui.MainWindowHandle == IntPtr.Zero) continue;
-
-            var root = AutomationElement.FromHandle(winui.MainWindowHandle);
-            var texts = root.FindAll(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
-
-            // On a sub-page, the page title appears as a heading (often the first
-            // text that matches). It should NOT still show the full list of controls.
-            // Check: does the page have a "Namespace:" text (sub-page indicator)?
-            bool hasNamespace = false;
-            bool hasTitleMatch = false;
-            foreach (AutomationElement t in texts)
-            {
-                var name = t.Current.Name ?? "";
-                if (name.StartsWith("Namespace:")) hasNamespace = true;
-                if (name.Equals(expectedPage, StringComparison.OrdinalIgnoreCase)) hasTitleMatch = true;
-                // Some pages use singular form (e.g. "Button" for "Buttons")
-                if (name.Equals(expectedPage.TrimEnd('s'), StringComparison.OrdinalIgnoreCase)) hasTitleMatch = true;
-            }
-
-            if (hasNamespace || hasTitleMatch)
-                return; // Successfully navigated
-
-            // Still on overview — retry click
-            SetForegroundWindow(winui.MainWindowHandle);
-            Thread.Sleep(500);
-            root = AutomationElement.FromHandle(winui.MainWindowHandle);
-            if (!ClickWinUITextElement(root, expectedPage))
-                ScrollAndClick(root, expectedPage);
-            Thread.Sleep(2000);
+            var name = t.Current.Name;
+            if (!string.IsNullOrWhiteSpace(name))
+                result.Add(name);
         }
+        return result;
     }
     /// </summary>
     static List<AutomationElement> GetWinUIFlyoutItems(AutomationElement root)
