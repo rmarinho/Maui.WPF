@@ -23,26 +23,34 @@ public class WpfAppFixture : IDisposable
     /// <summary>
     /// Always returns a fresh Process object for the WPF ControlGallery
     /// with a valid MainWindowHandle. Distinguishes from WinUI by module path.
+    /// If the WPF app has crashed, restarts it automatically.
     /// </summary>
     public Process GetProcess()
     {
-        for (int i = 0; i < 10; i++)
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            foreach (var p in Process.GetProcessesByName("ControlGallery"))
+            for (int i = 0; i < 10; i++)
             {
-                try
+                foreach (var p in Process.GetProcessesByName("ControlGallery"))
                 {
-                    p.Refresh();
-                    if (p.MainWindowHandle == IntPtr.Zero) continue;
-                    // Distinguish WPF from WinUI by checking module path
-                    var path = p.MainModule?.FileName ?? "";
-                    if (path.Contains("net10.0-windows10.0", StringComparison.OrdinalIgnoreCase))
-                        continue; // Skip WinUI process
-                    return p;
+                    try
+                    {
+                        p.Refresh();
+                        if (p.MainWindowHandle == IntPtr.Zero) continue;
+                        // Distinguish WPF from WinUI by checking module path
+                        var path = p.MainModule?.FileName ?? "";
+                        if (path.Contains("net10.0-windows10.0", StringComparison.OrdinalIgnoreCase))
+                            continue; // Skip WinUI process
+                        return p;
+                    }
+                    catch { }
                 }
-                catch { }
+                Thread.Sleep(500);
             }
-            Thread.Sleep(500);
+
+            // WPF app not found — restart it
+            Launcher.LaunchWpf(build: false);
+            Thread.Sleep(5000);
         }
         throw new InvalidOperationException("Could not find WPF ControlGallery process with a valid window");
     }

@@ -273,12 +273,16 @@ public class CompareApps
     }
 
     /// <summary>
-    /// Navigate WinUI to a sub-page: flyout first, then mouse-click the target text.
+    /// Navigate WinUI to a sub-page: click back button if on a sub-page,
+    /// flyout to section overview, then mouse-click the target text.
     /// Returns the page title found in WinUI's automation tree after navigation.
     /// </summary>
     static string NavigateWinUIToSubPage(Process winui, string section, string subPage)
     {
-        // Navigate to section flyout page first
+        // First, click the back button if we're on a sub-page (pops the nav stack)
+        ClickWinUIBackButton(winui);
+
+        // Navigate to section flyout page
         NavigateWinUIFlyout(winui, section);
         Thread.Sleep(1500);
 
@@ -307,7 +311,8 @@ public class CompareApps
             if (!string.IsNullOrEmpty(pageTitle) && IsPageMatch(pageTitle, subPage))
                 return pageTitle;
 
-            // Navigation failed — go back to section and retry
+            // Navigation failed — click back and go back to section
+            ClickWinUIBackButton(winui);
             NavigateWinUIFlyout(winui, section);
             Thread.Sleep(1500);
         }
@@ -319,59 +324,105 @@ public class CompareApps
     }
 
     /// <summary>
+    /// Click the WinUI NavigationView back button repeatedly until it's disabled.
+    /// This fully pops the navigation stack back to the section overview.
+    /// The button name varies by locale (e.g. "Back", "Anterior") so we find it by AutomationId.
+    /// </summary>
+    static void ClickWinUIBackButton(Process winui)
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            winui.Refresh();
+            if (winui.MainWindowHandle == IntPtr.Zero) return;
+            var root = AutomationElement.FromHandle(winui.MainWindowHandle);
+            try
+            {
+                var backBtn = root.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty, "NavigationViewBackButton"));
+                if (backBtn == null || !backBtn.Current.IsEnabled) return;
+
+                var invoke = (InvokePattern)backBtn.GetCurrentPattern(InvokePattern.Pattern);
+                invoke.Invoke();
+                Thread.Sleep(800);
+            }
+            catch { return; }
+        }
+    }
+
+    /// <summary>
     /// Detect the current WinUI page title from the automation tree.
-    /// Sub-pages have a heading that's the singular form of the control name,
-    /// and contain "Namespace:" text.
+    /// Returns the page heading text, or "sub-page" if we've navigated away from a section overview.
     /// </summary>
     static string DetectWinUIPageTitle(AutomationElement root)
     {
         var texts = GetAllTextNames(root);
 
-        // If the page has "Namespace:" it's a sub-page — find the heading
-        // The heading is typically the first significant text after "Search"/"Appearance"
+        // Check if we're on a sub-page by looking for typical sub-page markers
         bool hasNamespace = texts.Any(t => t.StartsWith("Namespace:"));
         bool hasCodeTabs = texts.Contains("C#") || texts.Contains("XAML");
-        bool hasBack = texts.Contains("← Back") || texts.Contains("Back");
-
-        if (hasNamespace || hasCodeTabs || hasBack)
+        bool hasBackButton = false;
+        try
         {
-            // Find the namespace line to identify the page
-            foreach (var t in texts)
-            {
-                if (t.StartsWith("Namespace:"))
-                    return t; // e.g. "Namespace: Microsoft.Maui.Controls"
-            }
-            // Return the first substantial text that looks like a page title
-            foreach (var t in texts)
-            {
-                if (t.Length > 2 && t.Length < 30 &&
-                    t != "Control Gallery" && t != "Search" && t != "Appearance" &&
-                    t != "C#" && t != "XAML" && t != "Style" && t != "← Back" &&
-                    t != "Back" && !t.StartsWith("Namespace:"))
-                    return t;
-            }
+            var backBtn = root.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "NavigationViewBackButton"));
+            hasBackButton = backBtn != null && backBtn.Current.IsEnabled;
+        }
+        catch { }
+
+        // If the back button is enabled, we're on a sub-page
+        bool isSubPage = hasNamespace || hasCodeTabs || hasBackButton;
+        if (!isSubPage) return "";
+
+        // Find the first substantial text that looks like a page title
+        // (skip generic UI elements, section names, very long texts, and Style markup)
+        foreach (var t in texts)
+        {
+            if (t.Length > 1 && t.Length < 40 &&
+                t != "Control Gallery" && t != "Search" && t != "Appearance" &&
+                t != "C#" && t != "XAML" && t != "Style" && t != "← Back" &&
+                t != "Back" && t != "Controls" && t != "Layouts" &&
+                t != "Features" && t != "Home" && t != "Gallery" &&
+                !t.StartsWith("Namespace:") &&
+                !t.StartsWith("<Style") && !t.StartsWith("<"))
+                return t;
         }
 
-        return "";
+        // Fallback: if back button is enabled, we're on some sub-page
+        return hasBackButton ? "sub-page" : "";
     }
 
     /// <summary>
     /// Check if a detected page title matches the expected sub-page name.
-    /// Handles singular/plural and namespace matching.
+    /// Handles singular/plural, common variations, and sub-page detection.
     /// </summary>
     static bool IsPageMatch(string detected, string expected)
     {
         if (string.IsNullOrEmpty(detected)) return false;
 
+        // We confirmed we're on a sub-page (back button enabled)
+        if (detected == "sub-page") return true;
+
         // Direct match
         if (detected.Equals(expected, StringComparison.OrdinalIgnoreCase)) return true;
 
-        // Singular form (Buttons -> Button, Labels -> Label)
+        // Singular form (Buttons -> Button, Labels -> Label, etc.)
         var singular = expected.TrimEnd('s');
         if (detected.Equals(singular, StringComparison.OrdinalIgnoreCase)) return true;
 
-        // Namespace line match — any sub-page that has "Namespace:" means we navigated
-        if (detected.StartsWith("Namespace:")) return true;
+        // Normalize: remove spaces, then compare with/without trailing 's'
+        var nd = detected.Replace(" ", "").ToLowerInvariant();
+        var ne = expected.Replace(" ", "").ToLowerInvariant();
+        if (nd == ne || nd == ne.TrimEnd('s') || nd + "s" == ne) return true;
+
+        // Partial match — detected title contains expected or vice versa
+        if (detected.Contains(expected, StringComparison.OrdinalIgnoreCase) ||
+            expected.Contains(detected, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Section-specific: e.g. "Carousel Samples" matches "CarouselView", "Carousel" contains "Carousel"
+        var expectedWord = expected.Replace("View", "").Replace("Bar", "").Replace(" ", "").TrimEnd('s');
+        if (nd.Contains(expectedWord.ToLowerInvariant()))
+            return true;
 
         return false;
     }
@@ -380,6 +431,7 @@ public class CompareApps
     /// Click a text element only if it's within the visible window bounds.
     /// Uses the automation element's own bounding rectangle (logical/DPI-aware pixels).
     /// Checks against the window's automation element bounds for consistent coordinate space.
+    /// Tries ScrollIntoView for elements near the edge.
     /// </summary>
     static bool ClickWinUIVisibleTextElement(AutomationElement root, IntPtr hwnd, string text)
     {
@@ -394,6 +446,16 @@ public class CompareApps
             var rect = el.Current.BoundingRectangle;
             if (rect.IsEmpty || rect.Width <= 0 || rect.Height <= 0) continue;
             if (double.IsNaN(rect.X) || double.IsNaN(rect.Y)) continue;
+
+            // Try ScrollIntoView if available
+            try
+            {
+                var scrollItem = (ScrollItemPattern)el.GetCurrentPattern(ScrollItemPattern.Pattern);
+                scrollItem.ScrollIntoView();
+                Thread.Sleep(500);
+                rect = el.Current.BoundingRectangle;
+            }
+            catch { }
 
             // Only click if element center is within the window's automation bounds
             double cy = rect.Y + rect.Height / 2;
