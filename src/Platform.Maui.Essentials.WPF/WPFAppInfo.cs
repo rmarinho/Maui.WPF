@@ -11,7 +11,24 @@ namespace Microsoft.Maui.Essentials.WPF
 		public Version Version => Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0);
 		public string BuildString => VersionString;
 		public LayoutDirection RequestedLayoutDirection => LayoutDirection.LeftToRight;
-		public AppTheme RequestedTheme => AppTheme.Light;
+		public AppTheme RequestedTheme
+		{
+			get
+			{
+				try
+				{
+					using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+					if (key != null)
+					{
+						var value = key.GetValue("AppsUseLightTheme");
+						if (value is int i)
+							return i == 0 ? AppTheme.Dark : AppTheme.Light;
+					}
+				}
+				catch { }
+				return AppTheme.Light;
+			}
+		}
 		public AppPackagingModel PackagingModel => AppPackagingModel.Unpackaged;
 
 		public void ShowSettingsUI() { }

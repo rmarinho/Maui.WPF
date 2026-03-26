@@ -20,7 +20,16 @@ namespace Microsoft.Maui.Handlers
 			if (rect.Width < 0 || rect.Height < 0)
 				return;
 
-			platformView.Arrange(new global::System.Windows.Rect(rect.X, rect.Y, rect.Width, rect.Height));
+			var wpfRect = new global::System.Windows.Rect(rect.X, rect.Y, rect.Width, rect.Height);
+
+			if (platformView.Dispatcher.CheckAccess())
+			{
+				platformView.Arrange(wpfRect);
+			}
+			else
+			{
+				platformView.Dispatcher.BeginInvoke(() => platformView.Arrange(wpfRect));
+			}
 
 			this.Invoke(nameof(IView.Frame), rect);
 		}
@@ -35,6 +44,17 @@ namespace Microsoft.Maui.Handlers
 			if (widthConstraint < 0 || heightConstraint < 0)
 				return Graphics.Size.Zero;
 
+			// GetDesiredSize must run on UI thread since it calls Measure
+			if (!platformView.Dispatcher.CheckAccess())
+			{
+				return platformView.Dispatcher.Invoke(() => MeasureOnThread(platformView, widthConstraint, heightConstraint));
+			}
+
+			return MeasureOnThread(platformView, widthConstraint, heightConstraint);
+		}
+
+		static Graphics.Size MeasureOnThread(FrameworkElement platformView, double widthConstraint, double heightConstraint)
+		{
 			widthConstraint = AdjustForExplicitSize(widthConstraint, platformView.Width);
 			heightConstraint = AdjustForExplicitSize(heightConstraint, platformView.Height);
 

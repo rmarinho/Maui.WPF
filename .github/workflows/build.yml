@@ -12,6 +12,7 @@ on:
     - main
     - dev
     - preview
+    - more-controls
     - v*
   pull_request:
     branches:
@@ -45,6 +46,12 @@ jobs:
 
     - name: Build
       run: dotnet build build.slnf -m --no-restore -property:Configuration=Release
+
+    - name: Build ControlGallery Sample
+      run: dotnet build samples\ControlGallery\ControlGallery.csproj -v:q
+
+    - name: Build UI Tests
+      run: dotnet build tests\UITests\UITests.csproj -v:q
 
     - name: Post NuGet Artifacts
       uses: actions/upload-artifact@v4

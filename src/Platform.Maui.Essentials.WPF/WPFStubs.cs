@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.ApplicationModel;
@@ -205,16 +206,99 @@ namespace Microsoft.Maui.Essentials.WPF
 
 	public class WPFScreenshot : IScreenshot
 	{
-		public bool IsCaptureSupported => false;
-		public Task<IScreenshotResult?> CaptureAsync() => Task.FromResult<IScreenshotResult?>(null);
+		public bool IsCaptureSupported => true;
+
+		public Task<IScreenshotResult?> CaptureAsync()
+		{
+			try
+			{
+				var window = System.Windows.Application.Current?.MainWindow;
+				if (window == null) return Task.FromResult<IScreenshotResult?>(null);
+
+				var dpiX = System.Windows.Media.VisualTreeHelper.GetDpi(window).PixelsPerInchX;
+				var dpiY = System.Windows.Media.VisualTreeHelper.GetDpi(window).PixelsPerInchY;
+				var width = (int)(window.ActualWidth * dpiX / 96.0);
+				var height = (int)(window.ActualHeight * dpiY / 96.0);
+
+				if (width <= 0 || height <= 0) return Task.FromResult<IScreenshotResult?>(null);
+
+				var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, dpiX, dpiY, System.Windows.Media.PixelFormats.Pbgra32);
+				bitmap.Render(window);
+
+				var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+				encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+
+				var stream = new MemoryStream();
+				encoder.Save(stream);
+				stream.Position = 0;
+
+				return Task.FromResult<IScreenshotResult?>(new WPFScreenshotResult(stream));
+			}
+			catch
+			{
+				return Task.FromResult<IScreenshotResult?>(null);
+			}
+		}
+	}
+
+	public class WPFScreenshotResult : IScreenshotResult
+	{
+		readonly MemoryStream _stream;
+
+		public WPFScreenshotResult(MemoryStream stream)
+		{
+			_stream = stream;
+			Width = 0;
+			Height = 0;
+		}
+
+		public int Width { get; }
+		public int Height { get; }
+
+		public Task<Stream> OpenReadAsync(ScreenshotFormat format = ScreenshotFormat.Png, int quality = 100)
+		{
+			_stream.Position = 0;
+			return Task.FromResult<Stream>(_stream);
+		}
+
+		public Task CopyToAsync(Stream destination, ScreenshotFormat format = ScreenshotFormat.Png, int quality = 100)
+		{
+			_stream.Position = 0;
+			return _stream.CopyToAsync(destination);
+		}
 	}
 
 	public class WPFTextToSpeech : ITextToSpeech
 	{
-		public Task<IEnumerable<Locale>> GetLocalesAsync() =>
-			Task.FromResult<IEnumerable<Locale>>(Array.Empty<Locale>());
-		public Task SpeakAsync(string text, SpeechOptions? options = null, CancellationToken cancelToken = default)
-			=> Task.CompletedTask;
+		public Task<IEnumerable<Locale>> GetLocalesAsync()
+		{
+			// Return empty locale list (Locale constructor is internal in MAUI 10)
+			return Task.FromResult<IEnumerable<Locale>>(Array.Empty<Locale>());
+		}
+
+		public async Task SpeakAsync(string text, SpeechOptions? options = null, CancellationToken cancelToken = default)
+		{
+			if (string.IsNullOrWhiteSpace(text)) return;
+
+			// Use PowerShell's built-in speech synthesis (available on all Windows)
+			await Task.Run(() =>
+			{
+				try
+				{
+					var escaped = text.Replace("'", "''").Replace("\"", "\\\"");
+					var psi = new System.Diagnostics.ProcessStartInfo
+					{
+						FileName = "powershell",
+						Arguments = $"-NoProfile -Command \"Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; $s.Speak('{escaped}')\"",
+						CreateNoWindow = true,
+						UseShellExecute = false,
+					};
+					var proc = System.Diagnostics.Process.Start(psi);
+					proc?.WaitForExit(30000);
+				}
+				catch { }
+			}, cancelToken);
+		}
 	}
 
 	public class WPFFilePicker : IFilePicker

@@ -17,6 +17,7 @@ namespace Microsoft.Maui.Handlers.WPF
 			[nameof(ILabel.LineHeight)] = MapLineHeight,
 			["MaxLines"] = MapMaxLines,
 			["FormattedText"] = MapFormattedText,
+			["LineBreakMode"] = MapLineBreakMode,
 		};
 
 		public static CommandMapper<ILabel, ILabelHandler> CommandMapper = new(ViewCommandMapper)

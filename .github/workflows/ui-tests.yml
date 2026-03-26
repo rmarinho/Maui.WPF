@@ -1,0 +1,63 @@
+name: UI Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - main
+    - more-controls
+  pull_request:
+    branches:
+    - main
+
+concurrency:
+  group: uitests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui-tests:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Install MAUI Workload
+      run: dotnet workload install maui-windows
+
+    - name: Build ControlGallery Sample
+      run: dotnet build samples\ControlGallery\ControlGallery.csproj -v:q
+
+    - name: Build UI Tests
+      run: dotnet build tests\UITests\UITests.csproj -v:q
+
+    - name: Run UI Tests
+      run: dotnet test tests\UITests\UITests.csproj --no-build --logger "trx;LogFileName=uitest-results.trx" --logger "console;verbosity=normal"
+      env:
+        # Ensure WinUI comparison tests skip gracefully (no WinUI app in CI)
+        CI: true
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: tests\UITests\TestResults\**\*.trx
+        retention-days: 30
+
+    - name: Upload Screenshots
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: screenshots
+        path: tests\UITests\Screenshots\**\*.png
+        retention-days: 30
+        if-no-files-found: ignore
