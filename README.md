@@ -3,10 +3,11 @@
 [![NuGet](https://img.shields.io/nuget/v/Platform.Maui.WPF.svg?label=Platform.Maui.WPF)](https://www.nuget.org/packages/Platform.Maui.WPF/)
 [![NuGet](https://img.shields.io/nuget/v/Platform.Maui.Essentials.WPF.svg?label=Platform.Maui.Essentials.WPF)](https://www.nuget.org/packages/Platform.Maui.Essentials.WPF/)
 [![Build](https://github.com/rmarinho/maui.wpf/actions/workflows/build.yml/badge.svg)](https://github.com/rmarinho/maui.wpf/actions/workflows/build.yml)
+[![UI Tests](https://github.com/rmarinho/maui.wpf/actions/workflows/ui-tests.yml/badge.svg)](https://github.com/rmarinho/maui.wpf/actions/workflows/ui-tests.yml)
 
 Custom .NET MAUI backend targeting WPF (Windows Presentation Foundation) — an alternative to the official WinUI backend.
 
-This backend uses the platform-agnostic MAUI NuGet packages (`net10.0` fallback assemblies) and provides custom handler implementations that bridge MAUI's layout/rendering system to WPF controls.
+This backend uses the platform-agnostic MAUI NuGet packages (`net10.0` fallback assemblies) and provides custom handler implementations that bridge MAUI's layout/rendering system to WPF controls. **All core MAUI controls, pages, layouts, gestures, and navigation patterns are implemented.**
 
 > **Inspiration:** This project follows the patterns established by [mauiplatforms](https://github.com/Redth/mauiplatforms) (macOS/tvOS backends) and [Maui.Gtk](https://github.com/AathifMahir/Maui.Gtk).
 
@@ -93,111 +94,134 @@ public class App : Application
 ## Samples
 
 See the `samples/` directory for working examples:
-- **Maui.Controls.Sample** — Full control gallery exercising all implemented handlers
+- **ControlGallery** — Full control gallery exercising all implemented handlers (used by UI tests)
 - **Maui.Controls.Sample.Blazor** — Blazor Hybrid WebView on WPF
 - **Maui.Sample** — Multi-platform sample with WPF platform folder
 
-## Handlers Implemented
+## Implementation Status
 
 ### Controls
 
 | Control | WPF Native Control | Status |
 |---|---|---|
-| Label | TextBlock | ✅ Full (Text, FormattedText, Font, Color, Alignment, Decorations, LineHeight, MaxLines, Padding) |
-| Button | Button | ✅ Full (Text, Font, TextColor, Background, Stroke, Clicked/Pressed/Released) |
-| Entry | TextBox | ✅ Full (Text, Font, Color, Placeholder, MaxLength, IsReadOnly, Keyboard, Alignment) |
-| Editor | TextBox (multiline) | ✅ Full (Text, Font, Color, MaxLength, IsReadOnly, Alignment) |
-| Image | Image | ✅ (Source, Aspect) |
-| CheckBox | CheckBox | ✅ (IsChecked, Color) |
-| Switch | ToggleButton (custom template) | ✅ (IsToggled, OnColor, ThumbColor — animated thumb) |
+| Label | TextBlock | ✅ Full (Text, FormattedText, Font, Color, Alignment, Decorations, LineHeight, MaxLines, Padding, CharacterSpacing) |
+| Button | Button | ✅ Full (Text, Font, TextColor, Background, CornerRadius, Padding, Clicked/Pressed/Released) |
+| Entry | TextBox / PasswordBox | ✅ Full (Text, Font, Color, Placeholder, MaxLength, IsReadOnly, IsPassword, Keyboard, CursorPosition, SelectionLength) |
+| Editor | TextBox (multiline) | ✅ Full (Text, Font, Color, Placeholder, MaxLength, IsReadOnly) |
+| Image | Image | ✅ Full (FileImageSource, UriImageSource, StreamImageSource, FontImageSource, Aspect) |
+| ImageButton | Button + Image | ✅ (Source, Aspect, Padding, BorderWidth, BorderColor) |
+| CheckBox | CheckBox | ✅ (IsChecked, Foreground via SolidPaint) |
+| Switch | Custom ControlTemplate | ✅ (IsToggled, OnColor, animated thumb toggle) |
 | Slider | Slider | ✅ (Value, Min, Max, MinimumTrackColor, MaximumTrackColor) |
-| ProgressBar | ProgressBar | ✅ (Progress, ProgressColor) |
-| ActivityIndicator | ProgressBar (indeterminate) | ✅ (IsRunning, Color) |
-| Picker | ComboBox | ✅ (Items, SelectedIndex, Title, Font, Background, Alignment) |
-| DatePicker | DatePicker | ✅ (Date, MinDate, MaxDate, Font, TextColor) |
-| TimePicker | TextBox | ✅ (Time, Font, CharacterSpacing) |
-| Stepper | StackPanel (−/+/label) | ✅ (Value, Min, Max, Increment) |
-| SearchBar | TextBox | ✅ (Text, Placeholder, Font, MaxLength, Alignment) |
-| Border | Border | ✅ (Stroke, StrokeThickness, Background, Padding, Content) |
-| BoxView | Border | ✅ (Color, CornerRadius, Background) |
+| ProgressBar | ProgressBar | ✅ (Progress 0-1 mapped to 0-100) |
+| ActivityIndicator | Custom rotating arc | ✅ (IsRunning, Color) |
+| Stepper | Custom ▲/▼ panel | ✅ (Value, Min, Max, Interval) |
+| RadioButton | RadioButton | ✅ (IsChecked, Content, TextColor, GroupName) |
+| Picker | ComboBox | ✅ (Items, SelectedIndex, Title, TextColor, TitleColor) |
+| DatePicker | DatePicker | ✅ (Date, MinimumDate, MaximumDate, Format) |
+| TimePicker | ComboBox (time items) | ✅ (Time, Format) |
+| SearchBar | TextBox + Button | ✅ (Text, Placeholder, TextColor, MaxLength) |
+| Border | Border | ✅ (Stroke, StrokeThickness, CornerRadius, Background, Padding, StrokeDashPattern) |
+| BoxView | ShapeViewHandler | ✅ (Color, CornerRadius) |
 | ScrollView | ScrollViewer | ✅ (Content, Orientation) |
-| ContentView | ContentPanel | ✅ (Content) |
-| ShapeView | Canvas shapes | ⚠️ Basic |
+| ContentView | ContentControl | ✅ (Content) |
+| WebView | WebView2 | ✅ (URL, HTML, JavaScript, Navigation, UserAgent) |
+| GraphicsView | Custom WpfCanvas | ✅ (ICanvas drawing via DrawingContext) |
 | BlazorWebView | WebView2 | ✅ (via AspNetCore.Components.WebView.Wpf) |
+
+### Collection Controls
+
+| Control | Status | Notes |
+|---|---|---|
+| CollectionView | ✅ | WPF ListBox with DataTemplateSelector, SelectedItem, SelectionMode, EmptyView |
+| ListView | ✅ | WPF ListBox with MAUI template bridge |
+| CarouselView | ✅ | Horizontal ListBox with arrow navigation buttons |
+| IndicatorView | ✅ | Dot indicators as Ellipses |
+| TableView | ✅ | Grouped sections with TextCell, SwitchCell, EntryCell |
+| SwipeView | ✅ | Context menu approximation |
+| RefreshView | ✅ | Progress bar indicator |
 
 ### Pages & Navigation
 
 | Page | Status | Notes |
 |---|---|---|
-| ContentPage | ✅ | Full support |
-| NavigationPage | ❌ | Not yet — use `Application.Current.Windows[0].Page = new Page()` |
-| TabbedPage | ❌ | Planned |
-| FlyoutPage | ❌ | Planned |
-| Shell | ❌ | Planned |
-| Modal pages | ❌ | Planned |
+| ContentPage | ✅ | Full support via PageHandler |
+| NavigationPage | ✅ | Push/pop stack, back button, title bar, toolbar items, animated transitions |
+| TabbedPage | ✅ | WPF TabControl with auto-generated TabItems |
+| FlyoutPage | ✅ | Grid with flyout panel, GridSplitter, IsPresented two-way sync |
+| Shell | ✅ | Flyout panel, tab control, URI-based routing, shell item navigation |
+| Modal pages | ✅ | Animated overlay push/pop via ModalNavigationManager |
 
 ### Layouts
 
-All layouts work: `VerticalStackLayout`, `HorizontalStackLayout`, `Grid`, `FlexLayout`, `AbsoluteLayout`, `ScrollView`, `ContentView`, `Border`.
+All layouts work via the cross-platform MAUI layout engine + `LayoutPanel`:
+
+`VerticalStackLayout` · `HorizontalStackLayout` · `Grid` · `FlexLayout` · `AbsoluteLayout` · `StackLayout` · `ScrollView` · `ContentView` · `Border` · `Frame`
 
 ### Gestures
 
-| Gesture | Status |
-|---|---|
-| Tap | ❌ Planned |
-| Pan | ❌ Planned |
-| Swipe | ❌ Planned |
-| Pinch | ❌ Planned |
-| Pointer (Hover) | ❌ Planned |
+| Gesture | Status | Notes |
+|---|---|---|
+| TapGestureRecognizer | ✅ | MouseLeftButtonUp via GestureManager |
+| PointerGestureRecognizer | ✅ | MouseEnter/Leave/Move |
+| PanGestureRecognizer | ✅ | Mouse capture + delta tracking |
+| SwipeGestureRecognizer | ✅ | Threshold-based direction detection |
+| PinchGestureRecognizer | ✅ | Ctrl+MouseWheel zoom |
+| DragGestureRecognizer | ✅ | WPF DragDrop.DoDragDrop |
+| DropGestureRecognizer | ✅ | AllowDrop + DragOver/Drop events |
+| LongPressGestureRecognizer | ✅ | DispatcherTimer 500ms hold |
+
+### Shapes
+
+All MAUI shapes render via WPF `System.Windows.Shapes`:
+
+`Rectangle` · `RoundRectangle` · `Ellipse` · `Line` · `Path` · `Polygon` · `Polyline` — with Fill, Stroke, StrokeDashPattern support.
 
 ### Infrastructure
 
 | Component | Status | Notes |
 |---|---|---|
 | Application | ✅ | MauiWPFApplication base class |
-| Window | ✅ | Title, Width, Height, Position, Min/Max sizes |
-| Dispatcher | ✅ | WPF Dispatcher |
-| DispatcherTimer | ✅ | |
-| Dialogs (Alert, Confirm, Prompt) | ❌ | Planned — will use WPF MessageBox/custom dialogs |
-| Font Management | ⚠️ | System fonts only — custom font loading planned |
-| Dark/Light Mode | ❌ | Planned |
-| Animations | ❌ | Planned — PlatformTicker needed |
-| FormattedText / Spans | ✅ | NSAttributedString-equivalent via TextBlock.Inlines |
-| Transforms | ❌ | Planned — RenderTransform mapping |
-| Shadow / Clip | ❌ | Planned |
-| MenuBar | ❌ | Planned — WPF native menu support |
-| AutomationId | ❌ | Planned |
+| Window | ✅ | Title, Size, Position, Min/Max, MenuBar, Multi-window |
+| Dispatcher | ✅ | WPF Dispatcher + DispatcherProvider |
+| Dialogs | ✅ | DisplayAlert (MessageBox), DisplayActionSheet, DisplayPromptAsync (custom windows) |
+| Font Management | ✅ | IFontManager, IFontRegistrar, embedded font loading, FontImageSource glyph rendering |
+| Dark/Light Mode | ✅ | ThemeManager detects via registry + SystemEvents, fires ThemeChanged |
+| Animations | ✅ | WPFTicker at ~60fps, TranslateTo/FadeTo/ScaleTo/RotateTo all work |
+| Transforms | ✅ | TranslationX/Y, Scale, Rotation → TransformGroup with RenderTransformOrigin |
+| Shadow | ✅ | DropShadowEffect with radius, offset, opacity |
+| Clip | ✅ | UIElement.Clip via Geometry.Parse |
+| MenuBar | ✅ | WPF Menu with MenuItem hierarchy, keyboard accelerators |
+| AutomationId | ✅ | AutomationProperties.AutomationId + Semantic properties |
+| ToolTip | ✅ | FrameworkElement.ToolTip |
+| ContextFlyout | ✅ | WPF ContextMenu with MenuItem hierarchy |
+| VisualStateManager | ✅ | PointerOver, Pressed, Focused, Disabled state hooks |
 
 ### Essentials
 
 | API | Status | Notes |
 |---|---|---|
-| AppInfo | ✅ | Package name, version, build, theme |
-| DeviceInfo | ✅ | Model, manufacturer, OS, platform, idiom |
-| Connectivity | ✅ | Network status, profiles, change events |
-| DeviceDisplay | ✅ | Screen dimensions, density, orientation |
-| FileSystem | ✅ | Cache/app data directories, package files |
-| Preferences | ✅ | Key/value via registry |
-| SecureStorage | ✅ | DPAPI-encrypted storage |
-| Clipboard | ✅ | WPF Clipboard |
+| AppInfo | ✅ | Assembly-based name, version, package; RequestedTheme |
+| DeviceInfo | ✅ | OS version, DeviceIdiom.Desktop |
+| Connectivity | ✅ | NetworkInterface.GetIsNetworkAvailable() |
+| DeviceDisplay | ✅ | SystemParameters with DPI |
+| FileSystem | ✅ | Environment.SpecialFolder paths |
+| Preferences | ✅ | IsolatedStorage / registry-based |
+| SecureStorage | ✅ | DPAPI (ProtectedData) |
+| Clipboard | ✅ | WPF System.Windows.Clipboard |
 | Browser | ✅ | Process.Start URL |
 | Launcher | ✅ | Process.Start |
-| Share | ✅ | WPF sharing |
-| FilePicker | ✅ | Win32 OpenFileDialog |
 | Email | ✅ | mailto: protocol |
 | Map | ✅ | Bing Maps URL |
+| Screenshot | ✅ | RenderTargetBitmap capture |
 | VersionTracking | ✅ | Preferences-backed |
-| Battery | ❌ | Stub |
-| Vibration | ❌ | N/A (desktop) |
-| Accelerometer | ❌ | N/A (desktop) |
-| Gyroscope | ❌ | N/A (desktop) |
-| Compass | ❌ | N/A (desktop) |
-| Geolocation | ❌ | Stub |
-| Geocoding | ❌ | Stub |
-| TextToSpeech | ❌ | Planned (System.Speech) |
-| Haptics | ❌ | N/A (desktop) |
-| Flashlight | ❌ | N/A (desktop) |
-| Barometer | ❌ | N/A (desktop) |
+| TextToSpeech | ✅ | System.Speech.Synthesis via PowerShell |
+| Battery | ✅ | Returns Full/AC for desktop |
+| Share | ⚠️ | Stub — no native share dialog on Windows desktop |
+| FilePicker | ⚠️ | Stub — needs WPF OpenFileDialog implementation |
+| Sensors | ⚠️ | Stubs (Accelerometer, Gyroscope, Compass, Barometer — N/A for desktop) |
+| Geolocation | ⚠️ | Stub (limited desktop relevance) |
+| Haptics / Vibration | ⚠️ | Stubs (N/A for desktop) |
 
 ## Project Structure
 
@@ -206,9 +230,11 @@ src/
   Platform.Maui.WPF/              # WPF backend library (net10.0-windows)
   Platform.Maui.Essentials.WPF/   # WPF Essentials library
 samples/
-  Maui.Controls.Sample/           # WPF Control Gallery
+  ControlGallery/                  # WPF Control Gallery (used by UI tests)
   Maui.Controls.Sample.Blazor/    # Blazor Hybrid sample
   Maui.Sample/                    # Multi-platform sample
+tests/
+  UITests/                         # 213 UI tests + WinUI comparison framework
 ```
 
 ## Prerequisites
@@ -230,53 +256,47 @@ dotnet workload list   # verify
 # Build libraries only (for NuGet packaging)
 dotnet build build.slnf -property:Configuration=Release
 
-# Build sample
-dotnet build samples\Maui.Controls.Sample\Maui.Controls.Sample.csproj
+# Build and run the Control Gallery sample
+dotnet build samples\ControlGallery\ControlGallery.csproj
+dotnet run --project samples\ControlGallery\ControlGallery.csproj
 
-# Run sample
-dotnet run --project samples\Maui.Controls.Sample\Maui.Controls.Sample.csproj
+# Run UI tests (213 tests)
+dotnet build tests\UITests\UITests.csproj
+dotnet test tests\UITests\UITests.csproj --no-build
 ```
 
 > **Note:** Build projects individually or use `build.slnf`. The full solution includes samples that may have additional dependencies.
 
+## Testing
+
+The project includes **213 UI tests** covering all implemented controls, plus a **WinUI comparison framework** that captures side-by-side screenshots of the WPF and WinUI ControlGallery apps for visual parity validation.
+
+```bash
+# Run all UI tests
+dotnet test tests\UITests\UITests.csproj --no-build
+
+# Run comparison tests only (requires WinUI ControlGallery running)
+dotnet test tests\UITests\UITests.csproj --no-build --filter "DisplayName~Compare"
+```
+
+Comparison screenshots are saved to `tests/UITests/Comparisons/`.
+
 ## Key Technical Notes
 
-- MAUI NuGet packages resolve to the `net10.0` (platform-agnostic) assembly. `ToPlatform()` returns `object` — custom handler base class casts to the WPF native view type.
+- MAUI NuGet packages resolve to the `net10.0` (platform-agnostic) assembly. `ToPlatform()` returns `object` — `WPFViewHandler<TVirtualView, TPlatformView>` provides the typed bridge.
 - The platform-agnostic `ViewHandler` has no-op `PlatformArrange` and returns `Size.Zero`. `WPFViewHandler` overrides these to bridge MAUI layout to WPF `Measure`/`Arrange`.
-- WPF `System.Windows.Controls` and MAUI `Microsoft.Maui.Controls` share many type names — every handler file uses `using` aliases to disambiguate.
-- Sample apps use XAML pages. The `MauiWPFApplication` base class in `App.xaml` bootstraps the MAUI runtime within a WPF `Application`.
-- WPF default Button `ControlTemplate` has system chrome that overrides `Background` — some visual properties require custom templates for full fidelity.
+- WPF `System.Windows.Controls` and MAUI `Microsoft.Maui.Controls` share many type names — every handler file uses `using` aliases to disambiguate (e.g., `WButton = System.Windows.Controls.Button`).
+- The `MauiWPFApplication` base class in `App.xaml` bootstraps the MAUI runtime within a WPF `Application`.
+- Dialogs use `DispatchProxy` + reflection to intercept `AlertManager` requests (the API is internal in MAUI). See [dotnet/maui#34104](https://github.com/dotnet/maui/issues/34104).
 
-## Dialogs
+## Known Limitations
 
-Dialogs (`DisplayAlertAsync`, `DisplayPromptAsync`) are **not yet supported**. This is a P0 priority item — implementation will use WPF `MessageBox` for alerts and custom WPF `Window` for prompts.
+- **Essentials stubs:** FilePicker, Share, and sensor APIs are stubs — desktop doesn't have equivalent hardware.
+- **Span.CharacterSpacing:** WPF has no direct CharacterSpacing API on TextBlock/Run — mapper is registered but no-op.
+- **SwipeView:** Approximated via context menu rather than swipe gesture.
+- **BlazorWebView:** DeveloperTools property is stubbed.
 
-## TODO
-
-See [BACKEND_IMPLEMENTATION_CHECKLIST.md](BACKEND_IMPLEMENTATION_CHECKLIST.md) for the full implementation status.
-
-### P0 — Critical
-- NavigationPage handler (push/pop stack, back button, toolbar)
-- DisplayAlert / DisplayActionSheet / DisplayPromptAsync
-- TapGestureRecognizer
-- CollectionView / ListView
-- PlatformTicker + Animations
-
-### P1 — Important
-- Shell navigation (flyout, tabs, routing)
-- TabbedPage / FlyoutPage
-- All gesture recognizers (Pointer, Pan, Swipe, Pinch)
-- IFontManager / IFontRegistrar (custom fonts)
-- MenuBar (WPF native menu)
-- Transforms (TranslationX/Y, Scale, Rotation) via RenderTransform
-- Shadow / Clip
-- WebView via WebView2
-
-### Broader Goals
-- NuGet packaging (CI/CD via GitHub Actions)
-- Multi-window support
-- Accessibility / AutomationId
-- Drag and drop
+See [BACKEND_IMPLEMENTATION_CHECKLIST.md](BACKEND_IMPLEMENTATION_CHECKLIST.md) for the complete implementation status with detailed notes.
 
 ## License
 

@@ -1,5 +1,7 @@
 using Microsoft.Maui.Devices;
 
+#pragma warning disable CS0067 // Event is never used (required by IDeviceDisplay interface)
+
 namespace Microsoft.Maui.Essentials.WPF
 {
 	public class WPFDeviceDisplay : IDeviceDisplay

@@ -5,6 +5,10 @@ using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.ApplicationModel.Communication;
 using Microsoft.Maui.Media;
 
+// Suppress unused event warnings — these events are required by MAUI interfaces
+// but are never fired in desktop stub implementations (no physical sensors).
+#pragma warning disable CS0067
+
 namespace Microsoft.Maui.Essentials.WPF
 {
 	// Sensor stubs - WPF desktop doesn't have physical sensors
@@ -208,19 +212,19 @@ namespace Microsoft.Maui.Essentials.WPF
 	{
 		public bool IsCaptureSupported => true;
 
-		public Task<IScreenshotResult?> CaptureAsync()
+		public Task<IScreenshotResult> CaptureAsync()
 		{
 			try
 			{
 				var window = System.Windows.Application.Current?.MainWindow;
-				if (window == null) return Task.FromResult<IScreenshotResult?>(null);
+				if (window == null) return Task.FromResult<IScreenshotResult>(new WPFScreenshotResult(new MemoryStream()));
 
 				var dpiX = System.Windows.Media.VisualTreeHelper.GetDpi(window).PixelsPerInchX;
 				var dpiY = System.Windows.Media.VisualTreeHelper.GetDpi(window).PixelsPerInchY;
 				var width = (int)(window.ActualWidth * dpiX / 96.0);
 				var height = (int)(window.ActualHeight * dpiY / 96.0);
 
-				if (width <= 0 || height <= 0) return Task.FromResult<IScreenshotResult?>(null);
+				if (width <= 0 || height <= 0) return Task.FromResult<IScreenshotResult>(new WPFScreenshotResult(new MemoryStream()));
 
 				var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, dpiX, dpiY, System.Windows.Media.PixelFormats.Pbgra32);
 				bitmap.Render(window);
@@ -232,11 +236,11 @@ namespace Microsoft.Maui.Essentials.WPF
 				encoder.Save(stream);
 				stream.Position = 0;
 
-				return Task.FromResult<IScreenshotResult?>(new WPFScreenshotResult(stream));
+				return Task.FromResult<IScreenshotResult>(new WPFScreenshotResult(stream));
 			}
 			catch
 			{
-				return Task.FromResult<IScreenshotResult?>(null);
+				return Task.FromResult<IScreenshotResult>(new WPFScreenshotResult(new MemoryStream()));
 			}
 		}
 	}
@@ -316,12 +320,12 @@ namespace Microsoft.Maui.Essentials.WPF
 			return Task.FromResult<FileResult?>(null);
 		}
 
-		public Task<IEnumerable<FileResult>> PickMultipleAsync(PickOptions? options = null)
+		public Task<IEnumerable<FileResult?>> PickMultipleAsync(PickOptions? options = null)
 		{
 			var dialog = new Microsoft.Win32.OpenFileDialog { Multiselect = true };
 			if (dialog.ShowDialog() == true)
-				return Task.FromResult<IEnumerable<FileResult>>(dialog.FileNames.Select(f => new FileResult(f)));
-			return Task.FromResult<IEnumerable<FileResult>>(Array.Empty<FileResult>());
+				return Task.FromResult<IEnumerable<FileResult?>>(dialog.FileNames.Select(f => (FileResult?)new FileResult(f)));
+			return Task.FromResult<IEnumerable<FileResult?>>(Array.Empty<FileResult?>());
 		}
 	}
 }

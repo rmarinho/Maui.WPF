@@ -458,7 +458,7 @@ namespace Microsoft.Maui.Controls.Hosting.WPF
 			Microsoft.Maui.Handlers.ViewHandler.ViewMapper.ModifyMapping("ToolTip", (handler, view, _) =>
 			{
 				object? tip = null;
-				try { tip = ToolTipProperties.GetText(view as BindableObject); } catch { }
+				try { if (view is BindableObject bo) tip = ToolTipProperties.GetText(bo); } catch { }
 				string? tipStr = tip is string s && !string.IsNullOrEmpty(s) ? s : null;
 				RunOnUI(handler, fe => fe.ToolTip = tipStr);
 			});

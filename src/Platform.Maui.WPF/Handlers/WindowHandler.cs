@@ -118,9 +118,9 @@ namespace Microsoft.Maui.Handlers.WPF
 
 			var container = FindRootViewContainer(handler.PlatformView);
 
-			if (container != null)
+			if (container != null && handler.VirtualView.Content is IView content)
 			{
-				var platformEl = (FrameworkElement)handler.VirtualView.Content.ToPlatform(handler.MauiContext);
+				var platformEl = (FrameworkElement)content.ToPlatform(handler.MauiContext);
 				container.AddPage(platformEl);
 			}
 		}
@@ -230,10 +230,10 @@ namespace Microsoft.Maui.Handlers.WPF
 			if (element is Microsoft.Maui.Controls.MenuFlyoutItem mfi)
 			{
 				var mi = new System.Windows.Controls.MenuItem { Header = mfi.Text };
-				if (mfi.KeyboardAccelerators?.Count > 0)
+				if (mfi.KeyboardAccelerators is { Count: > 0 } accelerators)
 				{
-					var accel = mfi.KeyboardAccelerators[0];
-					mi.InputGestureText = accel.Key.ToString();
+					var accel = accelerators[0];
+					mi.InputGestureText = accel?.Key?.ToString() ?? string.Empty;
 				}
 				mi.Click += (s, e) => mfi.Command?.Execute(mfi.CommandParameter);
 				parent.Items.Add(mi);

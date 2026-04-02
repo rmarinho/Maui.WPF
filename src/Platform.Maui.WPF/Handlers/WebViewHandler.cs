@@ -127,9 +127,9 @@ namespace Microsoft.Maui.Handlers.WPF
 				var result = await PlatformView.ExecuteScriptAsync(request.Script);
 				request.SetResult(result);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				request.SetResult(null);
+				request.SetResult(string.Empty);
 			}
 		}
 
