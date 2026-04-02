@@ -29,21 +29,17 @@ namespace Microsoft.AspNetCore.Components.WebView.Maui.WPF
 
 		public override Size GetDesiredSize(double widthConstraint, double heightConstraint)
 		{
-			// TODO I don't know why I need these explicit sizes.. I just forced it to 500 for now
+			// Use explicit WidthRequest/HeightRequest if set, otherwise fill available space
+			var w = (!double.IsInfinity(VirtualView.WidthRequest) && VirtualView.WidthRequest > 0)
+				? VirtualView.WidthRequest : widthConstraint;
+			var h = (!double.IsInfinity(VirtualView.HeightRequest) && VirtualView.HeightRequest > 0)
+				? VirtualView.HeightRequest : heightConstraint;
 
-			if (!double.IsInfinity(VirtualView.WidthRequest) && !double.IsInfinity(VirtualView.HeightRequest) &&
-				VirtualView.WidthRequest > 0 && VirtualView.HeightRequest > 0)
-			{
-				var size = base.GetDesiredSize(VirtualView.WidthRequest, VirtualView.HeightRequest);
-				PlatformView.WebView.Measure(new System.Windows.Size(VirtualView.WidthRequest, VirtualView.HeightRequest));
-				return new Size(VirtualView.WidthRequest, VirtualView.HeightRequest);
-			}
-			else
-			{
-				var size = base.GetDesiredSize(widthConstraint, heightConstraint);
-				PlatformView.WebView.Measure(new System.Windows.Size(widthConstraint, heightConstraint));
-				return size;
-			}
+			if (double.IsInfinity(w)) w = 800;
+			if (double.IsInfinity(h)) h = 600;
+
+			PlatformView.WebView.Measure(new System.Windows.Size(w, h));
+			return new Size(w, h);
 		}
 
 		public override void PlatformArrange(Rect rect)

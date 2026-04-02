@@ -38,10 +38,26 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapBackground(LayoutHandler handler, ILayout layout)
 		{
+			if (handler.PlatformView == null) return;
+			var bg = layout.Background;
+			if (bg is SolidPaint solid && solid.Color != null)
+			{
+				var c = solid.Color;
+				handler.PlatformView.Background = new System.Windows.Media.SolidColorBrush(
+					System.Windows.Media.Color.FromArgb(
+						(byte)(c.Alpha * 255), (byte)(c.Red * 255),
+						(byte)(c.Green * 255), (byte)(c.Blue * 255)));
+			}
+			else if (bg == null)
+			{
+				handler.PlatformView.Background = null;
+			}
 		}
 
 		public static void MapClipsToBounds(LayoutHandler handler, ILayout layout)
 		{
+			if (handler.PlatformView == null) return;
+			handler.PlatformView.ClipToBounds = layout.ClipsToBounds;
 		}
 
 		public static void MapAdd(LayoutHandler handler, ILayout layout, object? arg)

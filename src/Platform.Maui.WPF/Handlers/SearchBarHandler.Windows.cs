@@ -12,6 +12,7 @@ namespace Microsoft.Maui.Handlers.WPF
 	{
 		WTextBox _textBox = null!;
 		WButton _searchButton = null!;
+		System.Windows.Controls.TextBlock? _placeholderBlock;
 
 		protected override WGrid CreatePlatformView()
 		{
@@ -20,12 +21,24 @@ namespace Microsoft.Maui.Handlers.WPF
 			grid.ColumnDefinitions.Add(new WColumnDefinition { Width = System.Windows.GridLength.Auto });
 
 			_textBox = new WTextBox { MinWidth = 100 };
+
+			// Watermark placeholder overlay
+			_placeholderBlock = new System.Windows.Controls.TextBlock
+			{
+				IsHitTestVisible = false,
+				VerticalAlignment = System.Windows.VerticalAlignment.Center,
+				Margin = new System.Windows.Thickness(4, 0, 0, 0),
+				Foreground = System.Windows.Media.Brushes.Gray,
+			};
+			WGrid.SetColumn(_placeholderBlock, 0);
+
 			_searchButton = new WButton { Content = "🔍", Padding = new System.Windows.Thickness(8, 2, 8, 2) };
 
 			WGrid.SetColumn(_textBox, 0);
 			WGrid.SetColumn(_searchButton, 1);
 
 			grid.Children.Add(_textBox);
+			grid.Children.Add(_placeholderBlock);
 			grid.Children.Add(_searchButton);
 
 			return grid;
@@ -51,6 +64,15 @@ namespace Microsoft.Maui.Handlers.WPF
 		{
 			if (VirtualView == null) return;
 			VirtualView.Text = _textBox.Text;
+			UpdatePlaceholderVisibility();
+		}
+
+		void UpdatePlaceholderVisibility()
+		{
+			if (_placeholderBlock != null)
+				_placeholderBlock.Visibility = string.IsNullOrEmpty(_textBox.Text)
+					? System.Windows.Visibility.Visible
+					: System.Windows.Visibility.Collapsed;
 		}
 
 		void OnKeyDown(object sender, KeyEventArgs e)
@@ -81,7 +103,9 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapPlaceholder(SearchBarHandler handler, ISearchBar searchBar)
 		{
-			// WPF TextBox doesn't have a native placeholder property.
+			if (handler._placeholderBlock != null)
+				handler._placeholderBlock.Text = searchBar.Placeholder ?? string.Empty;
+			handler.UpdatePlaceholderVisibility();
 		}
 
 		public static void MapTextColor(SearchBarHandler handler, ISearchBar searchBar)
@@ -93,7 +117,9 @@ namespace Microsoft.Maui.Handlers.WPF
 
 		public static void MapPlaceholderColor(SearchBarHandler handler, ISearchBar searchBar)
 		{
-			// WPF TextBox doesn't have a native placeholder property.
+			var brush = ToBrush(searchBar.PlaceholderColor);
+			if (handler._placeholderBlock != null && brush != null)
+				handler._placeholderBlock.Foreground = brush;
 		}
 
 		public static void MapFont(SearchBarHandler handler, ISearchBar searchBar)
